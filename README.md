@@ -54,8 +54,6 @@ Rather than stopping at defect prediction, this repository converts the analysis
 
 The genetic search first identified the correct decision region: the minimum observed friability attainable with relatively low compression. Exact enumeration then verified the historical Pareto front and refined the same-quality candidate from `25.76 kN` to `24.55 kN`, a 4.7% reduction. The selected profile is a candidate for controlled confirmation—not a causal or production-ready prescription.
 
-![Quality-pressure Pareto trade-off](reports/figures/quality_pressure_tradeoff.png)
-
 ## Scientific Foundation and Primary Acknowledgment
 
 The pharmaceutical interpretation of the genetic results is grounded primarily in the work of **Julieta Villar Alvez**, whose experimental study provided the domain framework for understanding how compression pressure, hardness, friability, humidity, formulation, and compression time interact in tablet quality.
@@ -89,7 +87,7 @@ The processed dataset contains 1,098 observations from 60 production lots with n
 
 An Extra Trees model is evaluated with five-fold `GroupKFold`, using production lot as the group. Held-out-lot permutation importance identifies **compression, hardness, and minimum weight** as the strongest predictive signals.
 
-![Grouped feature importance](reports/figures/grouped_feature_importance.png)
+![Grouped feature importance](/grouped_feature_importance.png)
 
 ### 3. Multi-objective optimization
 
@@ -101,8 +99,6 @@ f_2(x)=\text{mean compression force in kN}
 $$
 
 The exact front provides ground truth, the NSGA-II implementation recovers all five nondominated objective pairs across three fixed seeds.
-
-![NSGA-II Pareto validation](reports/figures/nsga2_pareto_validation.png)
 
 ## Limitations
 
