@@ -1,6 +1,8 @@
 # Pharmaceutical Tablet Production Optimization
 A pharmaceutical company was experiencing problems with the manufacturing of its tablets; their friability was too high.
 
+For a visualization of this project, please visit: https://arielo00.github.io/Pastillas/
+
 **Leakage-aware machine learning and validated NSGA-II multi-objective optimization for tablet manufacturing.**
 
 This repository documents my contribution to a pharmaceutical-production project and turns the complete work into a reproducible portfolio case study.
