@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pastillas NSGA-II</title>
+<meta name="description" content="Optimización multiobjetivo del tableteado farmacéutico con un algoritmo genético NSGA-II validado contra el frente de Pareto exacto.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: left-aligned editorial column; the hero is a dark medicine-box panel holding a live evolution canvas;
+     every interactive module is a wide instrument panel on the page surface. */
+  --bg:#EEF2F1; --surface:#FFFFFF; --surface-2:#E2E9E7; --ink:#11273A; --ink-2:#4A6071; --line:#C7D3D1; --grid:rgba(17,39,58,.09);
+  --teal:#0F766E; --on-teal:#FFFFFF; --teal-soft:#D2E8E4;
+  --amber:#C47A0A; --amber-ink:#8A5300; --amber-soft:#F6E4C2;
+  --coral:#B8400F; --coral-soft:#F8DED2;
+  --tablet:#FDFEFD; --tablet-shade:#D5DFE0; --tablet-edge:#7F959C; --dot:rgba(17,39,58,.24);
+  --hero-bg:#0E2A36; --hero-ink:#EAF2F1; --hero-ink-2:#A3BEC3; --hero-line:rgba(234,242,241,.11); --hero-dot:rgba(234,242,241,.26);
+  --hero-teal:#57D3C0; --hero-amber:#F6B84A; --hero-tablet:#F6FAF9;
+  --font-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --font-body:"Instrument Sans","Segoe UI",system-ui,sans-serif;
+  --font-code:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --gutter:clamp(16px,4vw,40px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A161D; --surface:#10222C; --surface-2:#183039; --ink:#E3ECEE; --ink-2:#9AB0BA; --line:#27414D; --grid:rgba(227,236,238,.09);
+    --teal:#45C9B7; --on-teal:#04201D; --teal-soft:#133F3B;
+    --amber:#F2B04A; --amber-ink:#F2B04A; --amber-soft:#493510;
+    --coral:#F4875F; --coral-soft:#4A2418;
+    --tablet:#F3F8F7; --tablet-shade:#B9C9CC; --tablet-edge:#5C757E; --dot:rgba(227,236,238,.24);
+    --hero-bg:#112E3A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A161D; --surface:#10222C; --surface-2:#183039; --ink:#E3ECEE; --ink-2:#9AB0BA; --line:#27414D; --grid:rgba(227,236,238,.09);
+  --teal:#45C9B7; --on-teal:#04201D; --teal-soft:#133F3B;
+  --amber:#F2B04A; --amber-ink:#F2B04A; --amber-soft:#493510;
+  --coral:#F4875F; --coral-soft:#4A2418;
+  --tablet:#F3F8F7; --tablet-shade:#B9C9CC; --tablet-edge:#5C757E; --dot:rgba(227,236,238,.24);
+  --hero-bg:#112E3A;
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:1.0625rem;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-.018em;line-height:1.08}
+p{margin:0}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+canvas{display:block;width:100%}
+code,pre{font-family:var(--font-code)}
+:focus-visible{outline:2px solid var(--teal);outline-offset:2px;border-radius:4px}
+.wrap{width:min(1180px,100% - 2*var(--gutter));margin-inline:auto}
+.num{font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- nav ---------- */
+.nav{position:sticky;top:0;z-index:20;background:var(--hero-bg);color:var(--hero-ink);border-bottom:1px solid var(--hero-line)}
+.nav-in{display:flex;align-items:center;gap:18px;min-height:54px}
+.brand{display:inline-flex;align-items:center;gap:9px;font-family:var(--font-display);font-weight:700;font-size:1.1rem;text-decoration:none;letter-spacing:-.01em;flex:none}
+.brand svg{width:22px;height:22px}
+.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0;-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);padding-right:22px}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{text-decoration:none;font-size:.92rem;font-weight:500;color:var(--hero-ink-2);padding:6px 10px;border-radius:999px;white-space:nowrap}
+.nav-links a:hover{color:var(--hero-ink)}
+.nav-links a[aria-current="true"]{color:var(--hero-bg);background:var(--hero-teal)}
+.nav-tools{display:flex;align-items:center;gap:10px;flex:none}
+.nav :focus-visible{outline-color:var(--hero-teal)}
+.lang{display:inline-flex;border:1px solid var(--hero-line);border-radius:999px;padding:2px}
+.lang button{border:0;background:transparent;color:var(--hero-ink-2);font-size:.8rem;font-weight:600;padding:3px 9px;border-radius:999px;cursor:pointer}
+.lang button[aria-pressed="true"]{background:var(--hero-ink);color:var(--hero-bg)}
+.gh{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font-size:.9rem;font-weight:600;color:var(--hero-ink)}
+.gh svg{width:18px;height:18px}
+@media (max-width:720px){.gh span{display:none}.nav-in{gap:10px}}
+
+/* ---------- hero ---------- */
+.hero{background:var(--hero-bg);color:var(--hero-ink)}
+.hero :focus-visible{outline-color:var(--hero-teal)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:clamp(24px,4vw,60px);align-items:center;padding-block:clamp(32px,5vw,72px) clamp(36px,5vw,76px)}
+.hero h1{font-size:clamp(2.25rem,3.6vw + 1rem,4.15rem);font-weight:700;line-height:1.01;letter-spacing:-.028em}
+.hero .lede{margin-top:22px;font-size:clamp(1.05rem,.5vw + .95rem,1.22rem);line-height:1.55;color:var(--hero-ink-2);max-width:54ch}
+.hero .lede b{color:var(--hero-ink);font-weight:600}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.stage{min-width:0}
+.cv-hero{aspect-ratio:6/5}
+.stage-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-top:10px}
+.stage-status{font-size:.95rem;color:var(--hero-ink);font-weight:500}
+.stage-status b{color:var(--hero-amber);font-weight:700}
+.hero .legend{color:var(--hero-ink-2);margin-top:8px}
+@media (max-width:900px){.hero-grid{grid-template-columns:1fr}.cv-hero{aspect-ratio:1/1}}
+
+/* ---------- buttons & controls ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:.95rem;line-height:1.2;padding:.66em 1.1em;border-radius:999px;border:1px solid transparent;background:var(--teal);color:var(--on-teal);text-decoration:none;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--ink-2);filter:none}
+.btn.small{font-size:.86rem;padding:.48em .9em}
+.hero .btn{background:var(--hero-teal);color:var(--hero-bg)}
+.hero .btn.ghost{background:transparent;color:var(--hero-ink);border-color:rgba(234,242,241,.3)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface-2);max-width:100%}
+.seg button{border:0;background:transparent;padding:.42em .95em;border-radius:999px;color:var(--ink-2);font-weight:600;font-size:.9rem;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(10,30,40,.18)}
+input[type=range]{width:100%;accent-color:var(--teal);margin:0;height:22px}
+.ctl{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:baseline}
+.ctl label{font-size:.9rem;font-weight:500;color:var(--ink-2)}
+.ctl output{font-weight:700;font-size:.95rem;font-variant-numeric:tabular-nums}
+.ctl input[type=range]{grid-column:1/-1}
+.ctl input[type=number]{grid-column:1/-1;width:100%;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font-variant-numeric:tabular-nums}
+
+/* ---------- sections ---------- */
+.block{padding-block:clamp(54px,7.5vw,108px);scroll-margin-top:54px}
+.block + .block{border-top:1px solid var(--line)}
+.block h2{font-size:clamp(1.85rem,2.4vw + 1rem,3.05rem);font-weight:700;max-width:22ch}
+.block h3{font-size:clamp(1.2rem,.6vw + 1.05rem,1.5rem);font-weight:650}
+.prose{max-width:66ch;display:grid;gap:14px;margin-top:20px}
+.prose p{color:var(--ink)}
+.prose .soft{color:var(--ink-2)}
+.split{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,9fr);gap:clamp(24px,4vw,56px);align-items:start}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:clamp(16px,2.2vw,28px);margin-top:clamp(28px,4vw,44px);min-width:0}
+.panel-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px 20px;margin-bottom:14px}
+.panel-head p{color:var(--ink-2);font-size:.98rem;max-width:62ch;margin-top:6px}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.86rem;color:var(--ink-2);margin-top:10px}
+.key{display:inline-flex;align-items:center;gap:7px}
+.sw{display:inline-block;width:11px;height:11px;border-radius:50%;flex:none}
+.sw.dot{width:6px;height:6px;background:var(--dot)}
+.sw.tab{background:var(--tablet);border:1.5px solid var(--ink)}
+.sw.ring{background:transparent;border:2px solid var(--amber)}
+.sw.exact{background:var(--teal)}
+.hero .sw.dot{background:var(--hero-dot)}
+.hero .sw.tab{background:var(--hero-tablet);border-color:var(--hero-bg);box-shadow:0 0 0 1px var(--hero-ink-2)}
+.hero .sw.ring{border-color:var(--hero-amber)}
+.note{font-size:.93rem;color:var(--ink-2);border-left:3px solid var(--teal);padding:2px 0 2px 14px;max-width:72ch;margin-top:18px}
+.note.warn{border-left-color:var(--coral)}
+.readout{font-size:.98rem;min-height:3.2em}
+.readout b{font-weight:700}
+
+/* ---------- problem illustration ---------- */
+.rigs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+.rig{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:14px 14px 16px;display:grid;gap:8px;align-content:start}
+.rig svg{width:100%;height:auto;max-height:230px}
+.rig h4{font-size:1.02rem;font-weight:650}
+.rig p{font-size:.9rem;color:var(--ink-2);line-height:1.45}
+.rig .count{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink)}
+@media (max-width:480px){.rigs{grid-template-columns:1fr}}
+.punch{animation:press 2.4s ease-in-out infinite}
+.compact{animation:squash 2.4s ease-in-out infinite;transform-origin:110px 151px}
+.drum-spin{transform-origin:110px 100px}
+.spinning .drum-spin{animation:spin 2.4s linear 100}
+@keyframes press{0%,100%{transform:translateY(0)}45%,60%{transform:translateY(38px)}}
+@keyframes squash{0%,30%,100%{transform:scaleY(1)}45%,60%{transform:scaleY(.62)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- dominance ---------- */
+.explore{display:grid;grid-template-columns:minmax(0,1.9fr) minmax(0,1fr);gap:clamp(16px,2.4vw,30px);align-items:start}
+.cv-main{aspect-ratio:16/11;touch-action:manipulation;cursor:pointer;border-radius:8px}
+.profile{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:.92rem;margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.profile dt{color:var(--ink-2)}
+.profile dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+@media (max-width:860px){.explore{grid-template-columns:1fr}.cv-main{aspect-ratio:1/1}}
+
+/* ---------- steps ---------- */
+.steps{list-style:none;margin:clamp(28px,4vw,44px) 0 0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;counter-reset:step}
+.steps li{counter-increment:step;display:grid;gap:8px;align-content:start;font-size:.95rem;line-height:1.45;color:var(--ink-2)}
+.steps li::before{content:counter(step);display:grid;place-items:center;width:46px;height:46px;border-radius:50%;font-family:var(--font-display);font-weight:700;font-size:1.2rem;color:#11273A;
+  background:radial-gradient(circle at 35% 30%,var(--tablet),var(--tablet-shade));border:1.5px solid var(--tablet-edge);box-shadow:inset 0 0 0 4px var(--tablet),inset 0 0 0 5px color-mix(in srgb,var(--tablet-edge) 45%,transparent)}
+.steps b{display:block;color:var(--ink);font-family:var(--font-display);font-size:1.08rem;font-weight:650;letter-spacing:-.01em}
+@media (max-width:900px){.steps{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.steps{grid-template-columns:1fr}.steps li{grid-template-columns:46px 1fr;column-gap:14px}.steps li::before{grid-row:span 2}}
+
+/* ---------- bench ---------- */
+.bench{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:clamp(16px,2.4vw,32px);align-items:start}
+@media (max-width:900px){.bench{grid-template-columns:1fr}}
+.genes{display:grid;gap:7px;margin-top:6px}
+.gene,.gene-head{display:grid;grid-template-columns:minmax(92px,1.1fr) minmax(90px,2fr) repeat(3,minmax(46px,.62fr));gap:8px;align-items:center;font-size:.86rem}
+.gene-head{color:var(--ink-2);font-weight:600;font-size:.8rem;padding-bottom:2px}
+.gene-head span:nth-child(n+3),.gene .gv{text-align:right;font-variant-numeric:tabular-nums}
+.gname{line-height:1.2}
+.gname small{color:var(--ink-2);font-size:.78rem}
+.gtrack{position:relative;height:22px;border-radius:999px;background:var(--surface-2)}
+.gtrack::before{content:"";position:absolute;left:50%;top:3px;bottom:3px;width:1px;background:var(--line)}
+.gm{position:absolute;top:50%;width:12px;height:12px;border-radius:50%;transform:translate(-50%,-50%);transition:left .35s cubic-bezier(.3,.7,.2,1),opacity .2s}
+.gm.a{background:var(--teal)}
+.gm.b{background:var(--ink)}
+.gm.x{width:9px;height:9px;border-radius:2px;background:var(--surface);border:1.5px solid var(--ink-2);transform:translate(-50%,-50%) rotate(45deg)}
+.gm.c{width:20px;height:20px;background:transparent;border:2.5px solid var(--amber)}
+.gv.c{color:var(--amber-ink);font-weight:700}
+.gv.a{color:var(--teal);font-weight:600}
+.ka{color:var(--teal)}.kc{color:var(--amber-ink)}
+.cv-bench{aspect-ratio:4/3}
+.bench-ctl{display:grid;gap:14px;margin-top:16px}
+.verdict{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--surface-2);font-size:.95rem}
+@media (max-width:560px){
+  .gene,.gene-head{grid-template-columns:minmax(0,1.5fr) repeat(3,minmax(44px,.7fr))}
+  .gene .gtrack{grid-column:1/-1;grid-row:2}
+  .gene-head span:nth-child(2){display:none}
+  .gene{row-gap:4px;padding-bottom:4px}
+}
+details.code{margin-top:18px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+details.code summary{cursor:pointer;padding:12px 16px;font-weight:600;font-size:.95rem}
+details.code pre{margin:0;padding:4px 16px 16px;overflow-x:auto;font-size:.82rem;line-height:1.55;color:var(--ink)}
+
+/* ---------- selection ---------- */
+.sel{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:clamp(16px,2.4vw,32px);align-items:center}
+.cv-sel{aspect-ratio:4/3}
+@media (max-width:860px){.sel{grid-template-columns:1fr}}
+
+/* ---------- lab ---------- */
+.lab{display:grid;grid-template-columns:minmax(210px,250px) minmax(0,1fr);gap:clamp(16px,2.4vw,30px);align-items:start}
+.lab-ctl{display:grid;gap:13px}
+.lab-ctl .tools{margin-top:4px}
+.cv-lab{aspect-ratio:16/11}
+.transport{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;margin-top:12px}
+.transport output{font-weight:700;font-variant-numeric:tabular-nums;font-size:.95rem;min-width:5.5ch;text-align:right}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+.stat{border-top:2px solid var(--line);padding-top:8px;display:grid;gap:2px}
+.stat b{font-family:var(--font-display);font-size:clamp(1.3rem,1.2vw + 1rem,1.85rem);font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat b small{font-size:.55em;font-weight:600;color:var(--ink-2);letter-spacing:0}
+.stat span{font-size:.84rem;color:var(--ink-2);line-height:1.3}
+.stat.hit{border-top-color:var(--amber)}
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.chart h4{font-family:var(--font-body);font-size:.88rem;font-weight:600;color:var(--ink-2);letter-spacing:0;margin-bottom:4px}
+.cv-chart{aspect-ratio:5/2}
+.ops{margin-top:16px}
+.ops h4{font-family:var(--font-body);font-size:.88rem;font-weight:600;color:var(--ink-2);letter-spacing:0;margin-bottom:6px}
+.opbar{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--surface-2)}
+.opbar i{display:block;height:100%;transition:width .3s}
+.opbar .x{background:var(--teal)}.opbar .r{background:var(--amber)}.opbar .m{background:var(--ink-2)}.opbar .c{background:var(--tablet-edge)}
+.opkey{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:.84rem;color:var(--ink-2);margin-top:6px}
+.opkey i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px}
+@media (max-width:860px){.lab{grid-template-columns:1fr}.lab-ctl{grid-template-columns:1fr 1fr;gap:12px 18px}.lab-ctl .tools{grid-column:1/-1}.stats{grid-template-columns:1fr 1fr}.cv-lab{aspect-ratio:1/1}}
+@media (max-width:520px){.charts{grid-template-columns:1fr}}
+
+/* ---------- why ---------- */
+.why{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.4vw,28px);align-items:start}
+.why .panel{margin-top:0}
+.why-wrap{margin-top:clamp(28px,4vw,44px)}
+@media (max-width:900px){.why{grid-template-columns:1fr}}
+.cv-w{aspect-ratio:4/3;margin-top:8px}
+.scale-out{display:grid;gap:4px;margin:16px 0 4px}
+.scale-out .big{font-family:var(--font-display);font-size:clamp(1.6rem,2vw + 1rem,2.5rem);font-weight:700;letter-spacing:-.025em;line-height:1.05;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.scale-out span{color:var(--ink-2);font-size:.95rem}
+.scale-out .big{color:var(--ink)}
+.logbar{position:relative;height:74px;margin-top:20px}
+.logbar .ticks{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;font-size:.72rem;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.logbar .rail{position:absolute;left:0;right:0;top:20px;height:10px;border-radius:999px;background:var(--surface-2);overflow:hidden}
+.logbar .fill{position:absolute;left:0;top:0;bottom:0;background:var(--coral);border-radius:999px;transition:width .25s}
+.logbar .mark{position:absolute;top:16px;width:2px;height:20px;background:var(--teal)}
+.logbar .mark span{position:absolute;top:100%;left:0;font-size:.74rem;font-weight:600;color:var(--teal);white-space:nowrap;padding-top:1px;line-height:1.2}
+.logbar .mark.hist{height:36px;background:var(--ink)}
+.logbar .mark.hist span{color:var(--ink-2)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+/* ---------- results ---------- */
+.five{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:clamp(28px,4vw,44px)}
+.pill{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px 14px 18px;display:grid;gap:10px;justify-items:center;text-align:center;align-content:start}
+.pill svg{width:min(124px,100%);height:auto}
+.pill.best{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
+.pill dl{margin:0;display:grid;gap:2px;font-size:.88rem;color:var(--ink-2)}
+.pill dl b{color:var(--ink);font-variant-numeric:tabular-nums}
+.pill dd{margin:0}
+.tag{display:inline-block;font-size:.78rem;font-weight:700;padding:3px 10px;border-radius:999px;line-height:1.3}
+.tag.best{background:var(--teal-soft);color:var(--teal)}
+@media (max-width:900px){.five{grid-template-columns:1fr 1fr}}
+@media (max-width:440px){.five{grid-template-columns:1fr}.pill{grid-template-columns:96px 1fr;text-align:left;justify-items:start;column-gap:16px;align-items:center}.pill .tag{grid-column:1/-1}}
+.facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:clamp(28px,4vw,40px)}
+.fact{border-top:2px solid var(--ink);padding-top:10px}
+.fact b{display:block;font-family:var(--font-display);font-size:clamp(1.7rem,1.6vw + 1.1rem,2.5rem);font-weight:700;letter-spacing:-.025em;line-height:1.05;font-variant-numeric:tabular-nums}
+.fact span{display:block;margin-top:6px;font-size:.93rem;color:var(--ink-2);line-height:1.4}
+@media (max-width:860px){.facts{grid-template-columns:1fr 1fr}}
+.story{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:clamp(28px,4vw,40px)}
+.story > div{border-radius:20px;padding:18px 20px;border:1px solid var(--line);background:var(--surface)}
+.story > div.now{border-color:var(--teal)}
+.story h3{font-size:1.1rem;margin-bottom:6px}
+.story p{font-size:.96rem;color:var(--ink-2)}
+.story p b{color:var(--ink)}
+@media (max-width:720px){.story{grid-template-columns:1fr}}
+
+/* ---------- validation ---------- */
+.cv-leak{aspect-ratio:5/2;margin-top:6px}
+@media (max-width:600px){.cv-leak{aspect-ratio:4/3}}
+.r2{display:grid;gap:12px;margin-top:8px}
+.r2row{display:grid;grid-template-columns:minmax(120px,1.1fr) minmax(0,3fr) auto;gap:12px;align-items:center;font-size:.92rem;opacity:.5;transition:opacity .25s}
+.r2row.on{opacity:1}
+.bar{position:relative;height:20px;background:var(--surface-2);border-radius:6px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--teal)}
+.bar.bad i{background:var(--coral)}
+.bar u{position:absolute;top:50%;height:2px;background:var(--ink);transform:translateY(-50%)}
+.bar u::before,.bar u::after{content:"";position:absolute;top:-4px;width:2px;height:10px;background:var(--ink)}
+.bar u::before{left:0}.bar u::after{right:0}
+.r2row b{font-variant-numeric:tabular-nums;font-size:1.05rem}
+.imp{display:grid;gap:9px;margin-top:10px}
+.improw{display:grid;grid-template-columns:minmax(110px,1fr) minmax(0,3.2fr) minmax(64px,auto);gap:12px;align-items:center;font-size:.92rem}
+.improw .bar{background:transparent;border-left:1px solid var(--ink-2);border-radius:0;margin-left:10%}
+.improw .bar i{border-radius:0 5px 5px 0}
+.improw b{text-align:right;font-variant-numeric:tabular-nums}
+.improw.minor{color:var(--ink-2)}
+.improw.minor .bar i{background:var(--ink-2);opacity:.55}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,2.4vw,28px);align-items:start;margin-top:clamp(28px,4vw,44px)}
+.twocol .panel{margin-top:0}
+@media (max-width:900px){.twocol{grid-template-columns:1fr}}
+
+/* ---------- cautions & footer ---------- */
+.leaflet{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,4vw,56px);margin-top:clamp(24px,3vw,36px)}
+.leaflet ol{margin:0;padding-left:1.25em;display:grid;gap:10px}
+.leaflet li{padding-left:4px}
+.leaflet li::marker{font-weight:700;color:var(--coral)}
+.thanks{border-left:3px solid var(--teal);padding-left:18px;display:grid;gap:12px;align-content:start}
+.thanks a{color:var(--teal);font-weight:600}
+@media (max-width:860px){.leaflet{grid-template-columns:1fr}}
+footer{background:var(--hero-bg);color:var(--hero-ink-2);padding-block:36px;font-size:.93rem}
+footer .wrap{display:flex;flex-wrap:wrap;gap:14px 32px;justify-content:space-between;align-items:center}
+footer a{color:var(--hero-ink);font-weight:600}
+footer :focus-visible{outline-color:var(--hero-teal)}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .punch,.compact,.spinning .drum-spin{animation:none}
+  .gm,.opbar i,.logbar .fill{transition:none}
+}
+
+sup{font-size:.7em;line-height:0}
+
+.lower{font-size:.86rem;color:var(--ink-2);margin-top:8px}
+.hero .lower{color:var(--hero-ink-2)}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#inicio" data-go="inicio">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#F6FAF9" stroke="#57D3C0" stroke-width="1.6"/><path d="M5.5 15.5 18.5 8.5" stroke="#0E2A36" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Pastillas
+    </a>
+    <nav class="nav-links" aria-label="Secciones" data-i18n-aria="aria.0">
+      <a href="#problema" data-go="problema" data-i18n="nav.problem">Problema</a>
+      <a href="#evolucion" data-go="evolucion" data-i18n="nav.evo">Evolución</a>
+      <a href="#laboratorio" data-go="laboratorio" data-i18n="nav.lab">Laboratorio</a>
+      <a href="#por-que" data-go="por-que" data-i18n="nav.why">Por qué</a>
+      <a href="#resultados" data-go="resultados" data-i18n="nav.res">Resultados</a>
+      <a href="#validacion" data-go="validacion" data-i18n="nav.val">Validación</a>
+    </nav>
+    <div class="nav-tools">
+      <div class="lang" role="group" aria-label="Idioma / Language">
+        <button type="button" id="lang-es" aria-pressed="true">ES</button>
+        <button type="button" id="lang-en" aria-pressed="false">EN</button>
+      </div>
+      <a class="gh" href="https://github.com/Arielo00/Pastillas">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="hero" id="inicio">
+  <div class="wrap hero-grid">
+    <div>
+      <h1 data-i18n="hero.h1">De 1,098 registros de tableteado, la evolución se quedó con cinco.</h1>
+      <p class="lede" data-i18n="hero.lede">Una farmacéutica producía tabletas demasiado friables. Este proyecto usa un algoritmo genético multiobjetivo, <b>NSGA-II</b>, para encontrar los registros de producción que logran baja friabilidad sin exigirle fuerza de compresión de más a la tableteadora, y comprueba el resultado contra una enumeración exacta.</p>
+      <div class="cta">
+        <a class="btn" href="#laboratorio" data-go="laboratorio" data-i18n="hero.cta1">Abrir el laboratorio</a>
+        <a class="btn ghost" href="https://github.com/Arielo00/Pastillas" data-i18n="hero.cta2">Ver el repositorio</a>
+      </div>
+    </div>
+    <div class="stage">
+      <canvas class="cv-hero" id="cv-hero" role="img" aria-label="Población del algoritmo genético moviéndose hacia el frente de Pareto, generación por generación" data-i18n-aria="aria.1"></canvas>
+      <div class="stage-foot">
+        <span class="stage-status" id="hero-status" aria-live="off"></span>
+        <button class="btn ghost small" type="button" id="hero-replay" data-i18n="hero.replay">Repetir la evolución</button>
+      </div>
+      <div class="legend">
+        <span class="key"><i class="sw dot"></i><span data-i18n="lg.rec">registro de producción</span></span>
+        <span class="key"><i class="sw tab"></i><span data-i18n="lg.ind">individuo de la población</span></span>
+        <span class="key"><i class="sw ring"></i><span data-i18n="lg.arch">frente de Pareto encontrado</span></span>
+      </div>
+      <p class="lower" data-i18n="lg.low">En los dos ejes, menos es mejor: conviene estar abajo y a la izquierda.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="problema">
+  <div class="wrap">
+    <div class="split">
+      <div>
+        <h2 data-i18n="pb.h2">Dos objetivos que no se dejan minimizar juntos</h2>
+        <div class="prose">
+          <p data-i18n="pb.p1">La <b>friabilidad</b> mide cuánta masa pierde una tableta al golpearse y rozarse: se pesa una muestra, gira dentro de un tambor y se vuelve a pesar. Una tableta que se desmorona significa merma y reproceso, y la variación entre lotes vuelve menos confiable la planeación de la demanda. En los 60 lotes de este proyecto va de 0.25 % a 0.75 %.</p>
+          <p data-i18n="pb.p2">La <b>fuerza de compresión</b> es lo que los punzones aplican al granulado. Apretar de más fatiga los punzones y puede fracturar sus puntas, así que resolver la friabilidad a fuerza bruta sale caro.</p>
+          <p data-i18n="pb.p3">Cuando se piden las dos cosas a la vez ya no existe una única receta ganadora. Existe un conjunto de compromisos en el que no se puede mejorar un objetivo sin empeorar el otro: el <b>frente de Pareto</b>.</p>
+        </div>
+      </div>
+      <div class="rigs">
+        <figure class="rig" style="margin:0">
+          <svg viewBox="0 0 220 200" role="img" aria-label="Punzón superior comprimiendo el granulado dentro de la matriz" data-i18n-aria="aria.2">
+            <rect x="26" y="122" width="168" height="46" rx="4" fill="var(--surface-2)" stroke="var(--line)"/>
+            <rect x="86" y="121" width="48" height="48" fill="var(--bg)"/>
+            <rect x="89" y="151" width="42" height="40" rx="2" fill="#5A7384"/>
+            <rect class="compact" x="89" y="127" width="42" height="24" rx="3" fill="var(--tablet)" stroke="var(--tablet-edge)" stroke-width="1.5"/>
+            <g class="punch">
+              <rect x="101" y="6" width="18" height="40" fill="#5A7384"/>
+              <rect x="89" y="42" width="42" height="56" rx="2" fill="#34495A"/>
+            </g>
+            <path d="M160 34v44m0 0-7-10m7 10 7-10" fill="none" stroke="var(--coral)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <text x="174" y="62" font-size="15" font-weight="700" fill="var(--coral)" font-family="var(--font-body)">kN</text>
+          </svg>
+          <h4 data-i18n="rig.press.h">Compresión</h4>
+          <p data-i18n="rig.press.p">El punzón superior baja y compacta el granulado dentro de la matriz. La fuerza se registra en kilonewtons.</p>
+        </figure>
+        <figure class="rig" style="margin:0" id="rig-drum">
+          <svg viewBox="0 0 220 200" role="img" aria-label="Tambor de friabilidad girando con tabletas dentro" data-i18n-aria="aria.3">
+            <circle cx="110" cy="100" r="80" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="2.5"/>
+            <g class="drum-spin">
+              <path d="M110 100C132 96 150 116 152 168" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+              <g fill="var(--tablet)" stroke="var(--tablet-edge)" stroke-width="1.5">
+                <circle cx="76" cy="150" r="10"/><circle cx="98" cy="160" r="10"/><circle cx="122" cy="158" r="10"/>
+                <circle cx="60" cy="128" r="10"/><circle cx="88" cy="138" r="10"/><circle cx="112" cy="140" r="10"/>
+              </g>
+              <g stroke="var(--tablet-edge)" stroke-width="1.5" stroke-linecap="round">
+                <path d="M70 146l12 8M92 156l12 8M116 154l12 8M54 124l12 8M82 134l12 8M106 136l12 8"/>
+              </g>
+            </g>
+            <circle cx="110" cy="100" r="6" fill="var(--ink)"/>
+            <g fill="var(--tablet-edge)"><circle cx="64" cy="192" r="1.6"/><circle cx="92" cy="195" r="1.3"/><circle cx="121" cy="193" r="1.7"/><circle cx="150" cy="195" r="1.2"/><circle cx="107" cy="190" r="1.1"/></g>
+          </svg>
+          <h4 data-i18n="rig.drum.h">Friabilidad</h4>
+          <p><span data-i18n="rig.drum.p">El ensayo de farmacopea hace girar el tambor 100 veces a 25 rpm; el porcentaje de masa perdida es la friabilidad. Este tambor gira a esa velocidad.</span> <span class="count" id="drum-count"></span></p>
+        </figure>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3 data-i18n="dom.h3">Explora la dominancia</h3>
+          <p data-i18n="dom.p">Cada punto es un registro real de producción. Elige uno. Lo dominan los registros que no son peores en ningún objetivo y son mejores en al menos uno: quedan abajo, a la izquierda o ambas cosas. Un registro al que ningún otro domina pertenece al frente de Pareto. Con el teclado, las flechas recorren los registros.</p>
+        </div>
+        <div class="tools">
+          <button class="btn ghost small" type="button" id="dom-rand" data-i18n="dom.rand">Otro registro al azar</button>
+          <button class="btn ghost small" type="button" id="dom-front" aria-pressed="false" data-i18n="dom.front">Mostrar el frente</button>
+        </div>
+      </div>
+      <div class="explore">
+        <div><canvas class="cv-main" id="cv-dom" tabindex="0" role="img" aria-label="Dispersión de friabilidad contra fuerza de compresión de los 1,098 registros. Las flechas del teclado recorren los registros." data-i18n-aria="aria.4"></canvas><p class="lower" data-i18n="lg.low">En los dos ejes, menos es mejor: conviene estar abajo y a la izquierda.</p></div>
+        <div>
+          <p class="readout" id="dom-read" aria-live="polite"></p>
+          <dl class="profile" id="dom-profile"></dl>
+          <div class="legend">
+            <span class="key"><i class="sw" style="background:var(--teal)"></i><span data-i18n="dom.k1">lo dominan</span></span>
+            <span class="key"><i class="sw" style="background:var(--coral)"></i><span data-i18n="dom.k2">los que domina</span></span>
+            <span class="key"><i class="sw dot"></i><span data-i18n="dom.k3">ni uno ni otro</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="evolucion">
+  <div class="wrap">
+    <h2 data-i18n="ev.h2">¿Cómo se crea una mejor tableta?</h2>
+    <div class="prose">
+      <p data-i18n="ev.p1">En este algoritmo un individuo es el índice de un registro histórico de producción: una fila de la bitácora con ocho mediciones. La cruza y la mutación trabajan sobre esas ocho variables, estandarizadas. Su aptitud son dos números que se quieren pequeños, friabilidad y fuerza de compresión.</p>
+      <p data-i18n="ev.p2" class="soft">Buscar solo entre lo que la planta ya fabricó es una decisión de diseño: ninguna solución propone una receta que nunca se haya corrido.</p>
+    </div>
+    <ol class="steps">
+      <li><b data-i18n="st.1h">Población inicial</b><span data-i18n="st.1p">120 registros elegidos al azar.</span></li>
+      <li><b data-i18n="st.2h">Variación</b><span data-i18n="st.2p">240 hijos por generación: 55 % nacen de una cruza, 40 % de una mutación y 5 % son copias.</span></li>
+      <li><b data-i18n="st.3h">Evaluación</b><span data-i18n="st.3p">Cada hijo nuevo recibe sus dos objetivos.</span></li>
+      <li><b data-i18n="st.4h">Selección NSGA-II</b><span data-i18n="st.4p">Padres e hijos compiten juntos y sobreviven 120.</span></li>
+      <li><b data-i18n="st.5h">Archivo de Pareto</b><span data-i18n="st.5p">Los no dominados de cualquier generación se guardan. Tras 60 generaciones se repite con otra semilla.</span></li>
+    </ol>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <h3 data-i18n="bn.h3">Banco de cruza y mutación</h3>
+          <p id="bn-desc"></p>
+        </div>
+        <div class="seg" role="group" aria-label="Operador" data-i18n-aria="aria.5">
+          <button type="button" id="bn-x" aria-pressed="true" data-i18n="bn.tabx">Cruza</button>
+          <button type="button" id="bn-m" aria-pressed="false" data-i18n="bn.tabm">Mutación</button>
+        </div>
+      </div>
+      <div class="bench">
+        <div>
+          <div class="gene-head"><span data-i18n="bn.gene">Variable</span><span data-i18n="bn.scale">de bajo a alto en el histórico</span><span class="ka">A</span><span id="bn-colb">B</span><span class="kc" data-i18n="bn.child">Hijo</span></div>
+          <div class="genes" id="genes"></div>
+          <div class="bench-ctl">
+            <div class="ctl" id="bn-alpha-wrap">
+              <label for="bn-alpha" data-i18n="bn.alpha">Peso de A en la mezcla (α)</label><output id="bn-alpha-out" for="bn-alpha">0.50</output>
+              <input type="range" id="bn-alpha" min="0" max="1" step="0.01" value="0.5">
+            </div>
+            <div class="tools">
+              <button class="btn small" type="button" id="bn-go"></button>
+              <button class="btn ghost small" type="button" id="bn-a" data-i18n="bn.newa">Cambiar A</button>
+              <button class="btn ghost small" type="button" id="bn-b" data-i18n="bn.newb">Cambiar B</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <canvas class="cv-bench" id="cv-bench" role="img" aria-label="Posición de los padres y del hijo en el plano de objetivos" data-i18n-aria="aria.6"></canvas>
+          <p class="verdict" id="bn-verdict" aria-live="polite"></p>
+          <div class="legend">
+            <span class="key"><i class="sw" style="background:var(--teal)"></i>A</span>
+            <span class="key"><i class="sw" style="background:var(--ink)"></i><span id="bn-kb">B</span></span>
+            <span class="key"><i class="sw" style="width:9px;height:9px;border-radius:2px;transform:rotate(45deg);border:1.5px solid var(--ink-2)"></i><span data-i18n="bn.kmix">mezcla, que no existe en la bitácora</span></span>
+            <span class="key"><i class="sw ring"></i><span data-i18n="bn.kchild">hijo: el registro real más parecido</span></span>
+          </div>
+        </div>
+      </div>
+      <details class="code">
+        <summary data-i18n="bn.code">Ver los operadores en el notebook</summary>
+<pre><code>def mate(first, second):
+    first_profile = standardized_profiles[int(first[0])]
+    second_profile = standardized_profiles[int(second[0])]
+    blend = random.random()
+    first_child = blend * first_profile + (1 - blend) * second_profile
+    second_child = (1 - blend) * first_profile + blend * second_profile
+    first[0] = nearest_candidate(first_child)
+    second[0] = nearest_candidate(second_child)
+    return first, second
+
+def mutate(individual):
+    if random.random() &lt; 0.65:
+        individual[0] = random.randrange(len(data))
+        return (individual,)
+    current = standardized_profiles[int(individual[0])]
+    target = standardized_profiles[random.randrange(len(data))]
+    step = random.uniform(0.15, 0.85)
+    individual[0] = nearest_candidate(current + step * (target - current))
+    return (individual,)</code></pre>
+      </details>
+    </div>
+
+    <div class="panel">
+      <div class="sel">
+        <div>
+          <h3 data-i18n="sl.h3">Quién sobrevive</h3>
+          <div class="prose" style="margin-top:10px">
+            <p data-i18n="sl.p1">NSGA-II no ordena por una calificación. Ordena por frentes: primero los que nadie domina, después los que solo son dominados por esos, y así sucesivamente.</p>
+            <p data-i18n="sl.p2" class="soft">Cuando un frente no cabe completo entran primero sus individuos más aislados, los de mayor distancia de aglomeración (crowding distance). Así se conserva variedad a lo largo del frente.</p>
+          </div>
+          <div class="bench-ctl" style="max-width:420px">
+            <div class="ctl">
+              <label for="sl-k" data-i18n="sl.k">Lugares disponibles</label><output id="sl-k-out" for="sl-k">7</output>
+              <input type="range" id="sl-k" min="1" max="14" step="1" value="7">
+            </div>
+            <div class="tools"><button class="btn ghost small" type="button" id="sl-new" data-i18n="sl.new">Otra muestra de 14</button></div>
+          </div>
+          <p class="verdict" id="sl-read" aria-live="polite"></p>
+        </div>
+        <canvas class="cv-sel" id="cv-sel" role="img" aria-label="Catorce registros ordenados por frentes de no dominancia" data-i18n-aria="aria.7"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="laboratorio">
+  <div class="wrap">
+    <h2 data-i18n="lab.h2">Laboratorio NSGA-II</h2>
+    <div class="prose">
+      <p data-i18n="lab.p1">El algoritmo del notebook, portado a JavaScript y corriendo en tu navegador sobre los 1,098 registros reales. Usa otro generador de números aleatorios, así que una semilla aquí no reproduce la corrida de Python. Cambia los parámetros y mira cuántas generaciones tarda en completar el frente.</p>
+    </div>
+    <div class="panel">
+      <div class="lab">
+        <div class="lab-ctl">
+          <div class="ctl"><label for="p-mu" data-i18n="lab.mu">Población (μ)</label><output id="p-mu-out" for="p-mu"></output><input type="range" id="p-mu" min="10" max="200" step="10"></div>
+          <div class="ctl"><label for="p-la" data-i18n="lab.la">Hijos por generación (λ)</label><output id="p-la-out" for="p-la"></output><input type="range" id="p-la" min="20" max="400" step="20"></div>
+          <div class="ctl"><label for="p-g" data-i18n="lab.g">Generaciones</label><output id="p-g-out" for="p-g"></output><input type="range" id="p-g" min="10" max="100" step="5"></div>
+          <div class="ctl"><label for="p-cx" data-i18n="lab.cx">Probabilidad de cruza</label><output id="p-cx-out" for="p-cx"></output><input type="range" id="p-cx" min="0" max="1" step="0.05"></div>
+          <div class="ctl"><label for="p-mt" data-i18n="lab.mt">Probabilidad de mutación</label><output id="p-mt-out" for="p-mt"></output><input type="range" id="p-mt" min="0" max="1" step="0.05"></div>
+          <div class="ctl"><label for="p-rs" data-i18n="lab.rs">Mutaciones que saltan al azar</label><output id="p-rs-out" for="p-rs"></output><input type="range" id="p-rs" min="0" max="1" step="0.05"></div>
+          <div class="ctl"><label for="p-seed" data-i18n="lab.seed">Semilla</label><output></output><input type="number" id="p-seed" min="1" max="99999" step="1"></div>
+          <div class="tools">
+            <button class="btn ghost small" type="button" id="p-reseed" data-i18n="lab.reseed">Otra semilla</button>
+            <button class="btn ghost small" type="button" id="p-reset" data-i18n="lab.reset">Valores del proyecto</button>
+          </div>
+        </div>
+        <div>
+          <canvas class="cv-lab" id="cv-lab" role="img" aria-label="Población del algoritmo genético en el plano de objetivos" data-i18n-aria="aria.8"></canvas>
+          <div class="transport">
+            <button class="btn small" type="button" id="lab-play"></button>
+            <label class="sr" for="lab-scrub" data-i18n="lab.scrub">Generación</label>
+            <input type="range" id="lab-scrub" min="0" max="60" step="1" value="60">
+            <output id="lab-gen" for="lab-scrub"></output>
+          </div>
+          <div class="legend">
+            <span class="key"><i class="sw dot"></i><span data-i18n="lg.rec">registro de producción</span></span>
+            <span class="key"><i class="sw tab"></i><span data-i18n="lg.ind">individuo de la población</span></span>
+            <span class="key"><i class="sw exact"></i><span data-i18n="lg.exact">frente exacto, por enumeración</span></span>
+            <span class="key"><i class="sw ring"></i><span data-i18n="lg.arch2">archivo del algoritmo genético</span></span>
+          </div>
+          <p class="lower" data-i18n="lg.low">En los dos ejes, menos es mejor: conviene estar abajo y a la izquierda.</p>
+          <div class="stats">
+            <div class="stat hit"><b id="s-front"></b><span data-i18n="lab.s1">puntos del frente exacto ya encontrados</span></div>
+            <div class="stat"><b id="s-evals"></b><span data-i18n="lab.s2">evaluaciones de aptitud</span></div>
+            <div class="stat"><b id="s-uniq"></b><span data-i18n="lab.s3">registros distintos visitados</span></div>
+            <div class="stat"><b id="s-first"></b><span data-i18n="lab.s4">generación en que se completó el frente</span></div>
+          </div>
+          <div class="charts">
+            <div class="chart"><h4 data-i18n="lab.c1">Puntos del frente encontrados, por generación</h4><canvas class="cv-chart" id="cv-cov" role="img" aria-label="Puntos del frente encontrados por generación" data-i18n-aria="aria.9"></canvas></div>
+            <div class="chart"><h4 data-i18n="lab.c2">Registros distintos visitados, por generación</h4><canvas class="cv-chart" id="cv-uniq" role="img" aria-label="Registros distintos visitados por generación" data-i18n-aria="aria.10"></canvas></div>
+          </div>
+          <div class="ops">
+            <h4 id="ops-title"></h4>
+            <div class="opbar" id="opbar"><i class="x"></i><i class="r"></i><i class="m"></i><i class="c"></i></div>
+            <div class="opkey" id="opkey"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="por-que">
+  <div class="wrap">
+    <h2 data-i18n="why.h2">Por qué un algoritmo genético multiobjetivo</h2>
+    <div class="prose">
+      <p data-i18n="why.p1">Un algoritmo bioinspirado no necesita derivadas ni un modelo físico de la tableteadora. Le basta poder medir, o predecir, qué tan buena es una receta. Y al comparar por dominancia entrega un conjunto de compromisos en lugar de una sola respuesta.</p>
+    </div>
+    <div class="why-wrap why">
+      <div class="panel">
+        <h3 data-i18n="ws.h3">Una suma ponderada no ve todo el frente</h3>
+        <div class="prose" style="margin-top:8px"><p class="soft" data-i18n="ws.p">La salida fácil es fundir los dos objetivos en un solo número con pesos. Mueve el peso: el mínimo salta entre tres puntos y nunca cae en los otros dos, porque quedan en una zona cóncava del frente.</p></div>
+        <canvas class="cv-w" id="cv-ws" role="img" aria-label="Frente de Pareto y recta de costo de la suma ponderada" data-i18n-aria="aria.11"></canvas>
+        <div class="ctl" style="margin-top:10px">
+          <label for="ws-w" data-i18n="ws.w">Peso de la friabilidad</label><output id="ws-w-out" for="ws-w"></output>
+          <input type="range" id="ws-w" min="0.01" max="0.99" step="0.01" value="0.8">
+        </div>
+        <p class="verdict" id="ws-read" aria-live="polite"></p>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="sc.h3">Enumerar deja de ser opción muy pronto</h3>
+        <div class="prose" style="margin-top:8px"><p class="soft" data-i18n="sc.p">Hoy el espacio de búsqueda son 1,098 registros. El siguiente paso del proyecto es optimizar consignas continuas de la máquina sobre un modelo sustituto. Una malla completa tiene niveles<sup>variables</sup> combinaciones.</p></div>
+        <div class="pair" style="margin-top:14px">
+          <div class="ctl"><label for="sc-d" data-i18n="sc.d">Variables a ajustar</label><output id="sc-d-out" for="sc-d">8</output><input type="range" id="sc-d" min="1" max="8" step="1" value="8"></div>
+          <div class="ctl"><label for="sc-l" data-i18n="sc.l">Niveles por variable</label><output id="sc-l-out" for="sc-l">10</output><input type="range" id="sc-l" min="2" max="100" step="1" value="10"></div>
+        </div>
+        <div class="scale-out" aria-live="polite">
+          <span class="big" id="sc-n"></span>
+          <span id="sc-t"></span>
+        </div>
+        <div class="logbar" aria-hidden="true">
+          <div class="ticks"><span>1</span><span>10⁴</span><span>10⁸</span><span>10¹²</span><span>10¹⁶</span></div>
+          <div class="rail"><div class="fill" id="sc-fill"></div></div>
+          <div class="mark hist" id="sc-m1"><span data-i18n="sc.m1">1,098 registros</span></div>
+          <div class="mark" id="sc-m2"><span data-i18n="sc.m2">41,403 evaluaciones del algoritmo</span></div>
+        </div>
+        <p class="note" data-i18n="sc.note">El presupuesto de un algoritmo genético lo decides tú: hijos por generación por número de generaciones. No crece con el tamaño del espacio de búsqueda.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="resultados">
+  <div class="wrap">
+    <h2 data-i18n="rs.h2">Los cinco compromisos que ningún otro registro supera</h2>
+    <div class="prose">
+      <p data-i18n="rs.p1">Entre 1,098 registros de 60 lotes, solo cinco no están dominados. El algoritmo genético los recuperó todos entre tres semillas fijas, y la enumeración exacta confirma que no falta ninguno.</p>
+    </div>
+    <div class="five" id="five"></div>
+    <div class="facts">
+      <div class="fact"><b class="num">5 / 5</b><span data-i18n="rs.f1">puntos del frente exacto recuperados por NSGA-II (cobertura del 100 %)</span></div>
+      <div class="fact"><b class="num">41,403</b><span data-i18n="rs.f2">evaluaciones de aptitud entre las semillas 7, 19 y 42</span></div>
+      <div class="fact"><b class="num" data-i18n="rs.n3">0.25 %</b><span data-i18n="rs.f3">la menor friabilidad observada, alcanzada con 24.55 kN</span></div>
+      <div class="fact"><b class="num" data-i18n="rs.n4">−21.5 %</b><span data-i18n="rs.f4">de fuerza frente a la mediana del histórico (31.26 kN)</span></div>
+    </div>
+    <div class="story">
+      <div>
+        <h3 data-i18n="rs.s1h">Primera versión</h3>
+        <p data-i18n="rs.s1p">El primer algoritmo genético guardaba a sus mejores individuos en un salón de la fama ordenado, una estructura pensada para un solo objetivo. Devolvió veinte registros con 0.25 % de friabilidad y el de menor fuerza pedía <b>25.76 kN</b>.</p>
+      </div>
+      <div class="now">
+        <h3 data-i18n="rs.s2h">Versión validada</h3>
+        <p data-i18n="rs.s2p">Con un archivo de Pareto y la verificación por enumeración aparecen los cinco compromisos, y la misma friabilidad mínima se alcanza con <b>24.55 kN</b>: 4.7 % menos fuerza.</p>
+      </div>
+    </div>
+    <p class="note warn" data-i18n="rs.note">El registro recomendado es un candidato para un lote de confirmación controlado. No es todavía una receta de producción, y la evidencia es observacional.</p>
+  </div>
+</section>
+
+<section class="block" id="validacion">
+  <div class="wrap">
+    <h2 data-i18n="vl.h2">Qué anticipa la friabilidad, medido sin hacerse trampa</h2>
+    <div class="prose">
+      <p data-i18n="vl.p1">Un modelo Extra Trees responde otra pregunta del proyecto: qué mediciones anticipan la friabilidad. Aquí hay una trampa. La friabilidad se mide una vez por lote y se repite en todas sus filas, así que al repartir filas al azar el modelo ve en el entrenamiento a las hermanas de las filas con las que luego se le examina.</p>
+    </div>
+    <div class="twocol">
+      <div class="panel">
+        <div class="panel-head">
+          <h3 data-i18n="lk.h3">Cómo se reparte cada pliegue</h3>
+          <div class="seg" role="group" aria-label="Tipo de partición" data-i18n-aria="aria.12">
+            <button type="button" id="lk-rows" aria-pressed="false" data-i18n="lk.rows">Por filas</button>
+            <button type="button" id="lk-lots" aria-pressed="true" data-i18n="lk.lots">Por lote</button>
+          </div>
+        </div>
+        <canvas class="cv-leak" id="cv-leak" role="img" aria-label="Sesenta lotes como columnas de registros; en color las filas de prueba del pliegue" data-i18n-aria="aria.13"></canvas>
+        <div class="tools" style="margin-top:10px">
+          <span style="font-size:.9rem;color:var(--ink-2)" data-i18n="lk.fold">Pliegue de prueba</span>
+          <div class="seg" role="group" aria-label="Pliegue" data-i18n-aria="aria.14" id="lk-folds"></div>
+        </div>
+        <p class="verdict" id="lk-read" aria-live="polite"></p>
+        <div class="r2">
+          <div class="r2row" id="r2-lots"><span data-i18n="lk.r2a">R² agrupando por lote</span><div class="bar"><i style="width:44.31%"></i><u style="left:33.93%;width:20.76%"></u></div><b>0.44</b></div>
+          <div class="r2row" id="r2-rows"><span data-i18n="lk.r2b">R² con filas al azar</span><div class="bar bad"><i style="width:84.61%"></i><u style="left:83.13%;width:2.96%"></u></div><b>0.85</b></div>
+        </div>
+        <p class="note" data-i18n="lk.note">El 0.85 es fuga de información. El número que vale para lotes nunca vistos es 0.44, y es el que reporta el proyecto.</p>
+      </div>
+      <div class="panel">
+        <h3 data-i18n="im.h3">Qué mediciones anticipan la friabilidad</h3>
+        <div class="prose" style="margin-top:8px"><p class="soft" data-i18n="im.p">Importancia por permutación en lotes reservados: cuánto cae el R² al desordenar cada variable. La línea marca ± una desviación estándar entre los cinco pliegues.</p></div>
+        <div class="imp" id="imp"></div>
+        <p class="note" data-i18n="im.note">Compresión, dureza y peso mínimo concentran la señal. Es capacidad de predicción, no causalidad.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="advertencias">
+  <div class="wrap">
+    <h2 data-i18n="cv.h2">Advertencias y precauciones</h2>
+    <div class="leaflet">
+      <ol>
+        <li data-i18n="cv.1">Los datos son observacionales. La importancia de una variable no establece que cause la friabilidad.</li>
+        <li data-i18n="cv.2">La friabilidad es una medición por lote que se repite en cada registro de proceso de ese lote.</li>
+        <li data-i18n="cv.3">Dos lecturas de compresión caen por debajo de la cerca inferior de valores atípicos (Q1 − 1.5 × IQR = 8.16 kN). El punto de 0.62 kN se conserva en el frente por rigor matemático, pero puede ser un error de sensor o de captura.</li>
+        <li data-i18n="cv.4">El optimizador ordena registros históricos. Todavía no genera consignas continuas y validadas para la máquina.</li>
+        <li data-i18n="cv.5">Siguiente paso: entrenar un modelo sustituto con restricciones sobre experimentos adicionales y optimizar consignas continuas penalizando la incertidumbre.</li>
+      </ol>
+      <div class="thanks">
+        <h3 data-i18n="th.h3">Fundamento científico</h3>
+        <p data-i18n="th.p1">La interpretación farmacéutica se apoya en el trabajo experimental de <b>Julieta Villar Alvez</b>, <i>Factores que afectan a la compresión de comprimidos</i> (Universidad de Sevilla, 2017), que explica cómo interactúan presión de compresión, dureza, friabilidad, humedad, formulación y tiempo de compresión.</p>
+        <p data-i18n="th.p3">Ese trabajo recoge además un resultado de Tanino y colaboradores (1995): comprimir a baja presión durante más tiempo elimina mejor el aire atrapado que hacerlo a alta presión. Es la misma dirección que señala este análisis, la de buscar buena calidad con poca fuerza.</p>
+        <p data-i18n="th.p2">La cifra de 24.55 kN proviene de los datos y del análisis de este proyecto, no de ese estudio.</p>
+        <p><a href="https://idus.us.es/items/de5f0215-310f-4c95-b62e-fef0714b5a69" data-i18n="th.link">Registro oficial en idUS</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span data-i18n="ft.1">Proyecto de Arielo00. Python, DEAP, scikit-learn y pandas; esta página corre una versión en JavaScript del mismo algoritmo.</span>
+    <span><a href="https://github.com/Arielo00/Pastillas" data-i18n="ft.2">Código y notebook en GitHub</a></span>
+  </div>
+</footer>
+
+<script>const RAW={"lot":[32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,32,27,27,27,27,27,27,27,27,27,27,27,27,27,27,28,28,28,28,28,28,28,28,28,28,28,28,28,28,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,29,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,33,46,46,46,46,46,46,46,46,46,46,46,46,46,46,46,46,46,46,46,46,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,47,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,49,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,50,17,17,17,17,17,17,17,17,17,17,17,17,17,17,18,18,18,18,18,18,18,18,18,18,18,18,18,18,19,19,19,19,19,19,19,19,19,19,19,19,19,20,20,20,20,20,20,20,20,20,20,20,20,20,20,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,21,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,36,37,37,37,37,37,37,37,37,37,37,37,37,37,37,37,37,37,37,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,38,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,41,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,42,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,48,48,48,48,48,48,48,48,48,48,48,48,48,48,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,54,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,39,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,57,57,57,57,57,57,57,57,57,57,57,57,57,57,57,57,57,57,58,58,58,58,58,58,58,58,58,58,58,58,58,58,58,58,58,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,60,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,40,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,22,22,22,22,22,22,22,22,22,22,22,22,22,22,23,23,23,23,23,23,23,23,23,23,23,23,23,23,24,24,24,24,24,24,24,24,24,24,24,24,24,24,25,25,25,25,25,25,25,25,25,25,25,25,26,26,26,26,26,26,26,26,26,26,26,26,26,26,43,43,43,43,43,43,43,43,43,43,43,43,43,43,43,43,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,44,45,45,45,45,45,45,45,45,45,45,45,45,45,45,55,55,55,55,55,55,55,55,55,55,55,55,55,55,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,56,16,16,16,16,16,16,16,16,16,16,16,16,16,16,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,13,13,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,14,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,51,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,52,53,53,53,53,53,53,53,53,53,53,53,53,53,53,53,53,53,53,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,31,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,34,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35,35],"fr":[0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.28,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.29,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.55,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.27,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.45,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.34,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.66,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.59,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.41,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.3,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.47,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.35,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.26,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.58,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.51,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.39,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.36,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.43,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.54,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.32,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.62,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.42,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.46,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.37,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.68,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.74,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.38,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.7,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65,0.65],"X":[[2.16,2.76,2.88,3.73,3.07,3.2,2.62,2.94,4.61,4.41,4.58,3.77,3.38,3.95,3.72,3.96,8.24,7.76,7.83,8.65,8.6,9.33,8.19,7.3,6.7,6.89,6.73,6.89,6.93,6.88,10.84,10.65,14.56,14.78,14.83,12.22,14.14,8.12,9.17,13.71,12.23,11.63,11.77,11.4,6.44,5.06,5.05,7.61,14.35,12.87,11.03,10.51,9.51,9.76,8.01,5.95,5.67,4.95,1.2,5.82,5.7,4.75,5.16,4.99,4.8,5.23,4.95,5.58,6.4,5.96,6.02,6.83,6.61,6.54,6.16,6.6,7.01,6.39,4.43,4.93,5.08,5.06,5.37,5.66,5.06,5.47,5.31,5.08,5.06,2.32,2.42,2.35,2.29,2.28,2.16,2.11,2.13,2.23,4.34,3.79,3.71,3.79,3.75,3.82,3.87,3.97,3.94,3.51,3.21,3.42,3.33,3.23,3.34,3.1,3.31,3.37,3.31,4.95,4.89,5.04,4.51,4.29,4.63,4.83,4.37,4.83,4.72,4.58,4.48,4.33,4.4,4.36,4.37,5.09,4.3,4.33,4.53,4.97,4.88,5.02,4.56,5.18,5.26,5.45,5.35,4.81,5.14,5.96,6.01,6.05,6.01,6.16,6.18,6.29,6.23,6.18,6.12,6.18,6.18,6.02,6.15,4.64,4.65,4.64,4.73,4.72,4.72,4.67,4.49,4.79,4.86,4.94,4.8,6.3,5.88,5.93,5.98,5.96,5.97,6.12,6.07,5.43,4.92,5.18,5.2,5.16,5.31,5.51,5.25,9.58,8.41,8.69,8.62,7.91,8.57,8.91,7.64,6.45,6.86,6.52,6.89,7.17,7.16,7.76,7.95,8.54,8.57,8.28,8.39,8.16,6.94,6.64,6.62,7.13,7.15,7.23,6.98,11.32,10.82,10.68,13.63,3.2,12.07,9.5,9.32,10.09,10.07,0.09,10.17,10.15,0.8,9.84,14.2,14.24,13.44,13.33,13.48,10.51,9.87,11.06,10.8,10.2,10.7,10.63,10.96,14.29,10.78,11.54,9.68,12.72,9.84,9.52,10.02,12.37,8.9,10.05,11.76,7.97,11.02,11.17,10.29,10.52,9.97,10.37,6.41,6.13,6.21,6.83,7.06,7.37,6.88,6.76,6.1,5.93,5.6,6.11,6.64,6.82,6.71,6.29,4.77,3.56,3.66,3.25,3.37,3.42,3.18,3.54,3.62,5.78,5.7,5.85,6.29,5.44,5.56,5.24,5.43,5.62,4.98,5.24,4.84,4.37,4.33,4.27,4.54,4.26,4.48,7.4,5.93,5.92,5.42,5.62,5.66,6.21,6.18,5.86,4.85,5.27,4.75,4.78,4.42,4.95,4.87,4.79,4.24,4.9,4.91,4.83,4.97,4.87,5.11,4.87,5.54,7.45,7.32,7.39,8.03,7.84,7.79,8.01,8.13,7.71,6.53,7.33,6.79,6.91,7.68,7.89,7.67,7.72,7.87,7.51,9.04,8.39,12.18,11.78,11.62,12.03,11.79,12.36,12.47,12.34,10.29,10.05,11.41,7.76,8.13,11.25,11.28,10.53,10.33,11.25,11.75,11.76,11.34,9.89,9.87,10.72,6.57,6.87,7.07,7.05,6.85,6.9,6.95,6.93,8.01,8.22,8.21,8.04,8.3,8.29,7.95,8.12,7.94,7.44,7.27,16.42,19.02,18.17,17.74,17.93,17.3,17.47,17.41,17.22,16.65,17.38,14.4,8.99,8.78,8.35,14.13,19.36,17.14,21.78,21.6,21.78,21.72,21.59,21.7,21.92,21.6,16.7,9.49,10.69,10.08,11.2,10.83,10.76,8.91,9.29,8.22,8.88,9.39,9.61,9.54,9.97,9.69,11.02,10.59,10.64,10.38,10.9,10.59,9.22,8.92,9.47,9.04,8.8,9.09,8.87,9.12,9.54,8.56,10.12,10.18,12.15,12.28,11.9,12.06,12.4,12.07,11.9,9.4,9.93,11.6,11.72,11.93,11.74,11.7,11.63,11.76,11.38,4.69,4.46,4.4,4.49,4.53,4.5,4.52,5.27,5.32,5.26,5.61,5.31,5.46,5.33,10.5,10.3,10.7,10.7,11.1,11.4,11.7,11.3,13.8,12.7,12.9,12.7,12.7,12.6,12.5,11.9,13.9,12.8,12.9,12.8,12.6,12.5,12.0,3.6,3.8,4.0,3.9,4.1,4.1,4.5,4.5,4.7,4.9,4.9,5.0,5.0,4.9,4.9,4.9,4.9,5.1,4.7,5.16,4.92,4.97,4.76,4.63,4.71,4.85,4.83,4.64,4.79,5.32,4.39,4.48,4.2,4.31,4.17,4.25,4.44,4.34,4.07,4.3,5.67,5.84,5.89,5.19,5.87,5.9,5.69,5.92,5.66,7.07,6.2,5.93,6.18,5.55,6.19,5.6,6.04,6.42,6.12,6.21,6.36,6.24,3.9,3.9,3.8,4.0,3.9,4.0,4.2,4.2,4.1,4.2,4.1,4.1,4.1,4.2,4.2,4.2,4.2,4.2,4.6,4.3,4.6,4.5,4.5,4.6,4.4,4.6,4.5,4.6,4.6,4.5,4.4,4.6,4.7,4.6,4.6,4.9,5.0,6.0,6.2,6.2,6.6,6.5,6.4,6.6,6.4,6.6,6.6,6.8,6.8,6.7,6.6,7.2,6.5,3.98,4.37,3.71,3.9,3.81,3.93,3.93,3.99,3.98,4.09,4.24,4.22,4.14,4.19,4.46,4.18,5.86,5.97,5.77,5.8,6.31,6.61,6.48,6.11,5.66,5.62,6.61,6.18,6.53,7.04,6.52,6.19,9.93,10.45,10.54,8.88,9.29,10.5,10.4,11.21,11.54,11.11,10.89,11.28,11.86,11.45,3.18,2.91,2.22,2.31,2.58,2.57,2.56,4.91,4.36,4.19,4.37,4.2,4.12,4.22,9.97,10.18,11.71,11.13,11.0,11.36,10.83,9.53,8.97,9.55,10.32,10.17,10.29,9.81,8.18,7.23,6.28,6.58,6.75,6.8,8.69,7.93,7.8,7.51,7.41,7.78,8.84,7.5,7.92,8.18,8.26,8.69,7.85,6.43,6.35,6.47,6.44,6.69,6.36,6.3,5.16,5.4,5.54,4.97,5.26,5.45,5.31,5.1,4.99,5.1,4.99,5.14,5.42,5.5,5.54,5.41,4.47,4.26,4.86,4.85,4.41,4.81,4.73,4.72,4.64,5.0,5.06,4.87,5.16,5.2,5.42,5.04,5.1,4.88,4.82,4.85,5.03,4.74,4.96,5.64,5.33,5.22,5.3,5.56,5.5,5.49,4.7,4.7,4.0,4.2,4.2,4.5,4.5,4.5,4.0,3.8,4.2,3.3,3.2,3.2,1.7,2.7,2.7,2.5,2.5,2.8,2.9,2.8,3.3,4.2,4.4,4.4,4.6,4.8,4.8,5.0,5.5,3.7,9.84,8.92,9.2,9.66,9.9,10.23,9.5,8.47,8.01,7.94,8.11,8.41,8.86,8.25,7.44,6.89,4.7,5.45,5.86,5.44,5.59,5.89,6.57,5.86,4.76,5.16,5.21,5.14,5.22,5.32,18.11,16.76,19.27,19.16,19.04,20.02,18.58,13.37,13.51,14.98,14.63,14.78,14.96,14.48,16.24,11.7,9.64,9.12,9.53,9.8,10.95,14.57,11.31,9.61,9.84,10.31,9.62,10.81,8.07,7.79,7.88,7.9,7.88,8.27,8.5,7.95,5.78,6.25,6.47,6.14,6.11,6.91,7.27,6.37,3.34,3.74,3.44,3.62,3.81,3.89,3.57,3.8,3.78,3.74,3.63,3.61,3.63,5.48,5.04,4.9,5.04,5.27,5.73,4.92,4.99,4.97,5.75,4.82,5.38,5.18,4.28,4.37,4.07,4.0,3.92,3.99,4.0,4.51,4.08,4.12,4.33,4.38,4.31,4.43,5.01,4.62,4.62,4.57,4.53,3.88,4.14,4.03,4.5,4.2,4.45,4.45,4.26,4.88,4.73,4.58,4.85,4.92,5.15,5.38,5.31,5.02,3.65,3.51,4.29,4.33,4.08,4.77,4.18,5.08,4.99,4.43,7.44,6.15,6.22,6.48,6.19,5.84,6.24,5.98,6.11,6.11,6.36,4.19,4.17,3.41,3.91,3.57,3.61,3.93,6.46,6.2,5.42,5.79,5.82,5.93,5.43,5.77,9.36,8.56,9.15,9.49,10.26,10.99,10.75,10.75,10.83,10.52,10.52,10.05,9.98,10.02,9.62,9.92,9.68,9.99,9.99,10.39,10.28,10.44,10.62,11.38,11.07,10.73,10.85,11.14,11.29,11.23,11.16,10.68,10.51,10.66,10.61,10.52,10.62,10.71,4.12,3.99,4.2,5.28,5.36,5.27,5.26,4.59,4.78,5.97,5.94,6.01,5.04,5.58,5.07,5.12,4.66,5.25,5.1,4.86,4.9,5.1,5.44,4.7,4.81,5.48,5.38,5.24,5.33,5.1,5.83,6.82,7.28,7.84,7.28,6.07,5.99,6.5,5.97,5.96,6.1,6.31,6.14,7.15,6.84,6.94,7.69,7.6,7.64,7.65,7.57,7.86,7.81,7.55,6.14,6.55,6.56,6.47,7.52,7.52,7.65,7.45,7.46,7.49,7.61,7.28,5.19,6.47,6.24,6.36,6.38,6.45,6.53,6.76,6.42,5.96,7.25,7.1,7.33,7.51,7.7,8.04,7.66,7.53],[24.9,26.93,26.26,29.76,25.94,26.88,25.93,27.02,28.64,29.21,28.81,29.05,23.34,29.12,28.66,29.01,22.8,23.11,23.34,25.56,24.26,26.3,23.85,32.33,30.92,31.75,31.55,31.94,32.33,31.8,30.83,23.15,22.99,26.17,27.26,24.24,26.78,36.48,41.22,42.44,42.29,40.83,41.5,41.05,40.04,33.91,36.46,43.1,40.97,40.7,35.42,37.16,35.12,37.05,34.27,52.66,49.82,46.81,43.72,48.06,45.78,38.76,42.93,42.82,43.71,44.51,18.35,17.58,19.2,17.82,18.37,19.55,19.61,19.48,18.74,19.76,20.2,19.45,26.78,29.98,26.01,24.77,26.37,27.74,25.15,26.41,26.1,25.56,25.94,25.11,27.27,26.62,27.16,26.91,28.18,27.98,28.02,27.21,27.65,29.07,27.67,28.73,26.57,26.99,27.56,28.67,28.19,32.05,30.17,31.79,31.37,31.65,32.1,29.84,31.78,32.28,31.3,23.99,27.19,26.05,24.16,24.1,25.68,25.87,23.49,25.34,25.26,29.5,30.1,28.93,29.63,29.82,28.46,31.33,28.75,29.26,29.81,22.66,23.33,23.77,23.21,24.75,23.91,23.91,24.46,23.25,24.08,28.99,30.25,29.25,29.51,30.61,28.08,29.69,28.68,29.19,28.24,29.24,28.45,25.79,28.81,25.27,25.57,25.13,25.79,25.84,25.87,25.61,23.79,26.27,26.92,26.55,26.05,28.53,27.91,28.26,28.23,28.06,28.15,27.86,28.39,26.85,26.32,26.66,26.3,25.99,26.7,25.95,26.28,31.03,31.0,27.21,27.2,26.67,28.72,29.1,40.67,36.47,33.22,32.31,33.98,34.74,35.81,26.65,27.3,28.1,28.22,27.51,27.97,27.44,36.06,28.21,27.71,28.43,28.64,29.02,29.26,18.99,18.3,18.48,21.57,1.43,19.1,22.25,22.31,23.84,23.54,13.74,23.8,23.81,0.62,23.49,30.16,30.86,29.68,29.9,28.83,29.08,27.87,31.59,31.19,29.92,30.87,30.26,26.94,30.74,26.39,28.67,26.14,29.65,19.53,19.82,20.48,26.1,27.25,29.84,33.87,25.14,33.45,26.63,25.12,25.49,23.7,28.04,32.49,36.51,38.08,37.31,39.14,41.84,38.95,37.92,32.81,33.23,32.77,31.99,34.23,35.0,34.76,33.44,30.28,30.89,31.66,28.8,30.27,30.49,29.81,31.27,31.24,29.19,30.63,31.68,31.63,28.22,31.58,29.64,29.1,30.01,29.44,28.89,29.48,31.25,31.5,30.72,32.52,31.63,30.63,31.69,31.41,29.63,28.02,29.52,29.91,32.72,30.86,30.03,29.67,31.71,30.23,30.26,28.92,31.03,30.92,30.27,27.23,27.16,27.29,27.35,26.68,25.54,26.92,26.74,31.85,34.83,35.2,34.29,35.01,34.87,34.95,34.88,35.27,34.91,31.25,34.01,33.3,32.97,33.43,32.99,32.45,32.73,32.53,33.01,41.43,40.84,40.14,39.92,39.52,40.73,40.15,41.1,41.32,41.17,41.36,41.15,40.33,34.28,36.38,35.35,35.7,34.07,33.58,35.49,36.57,36.52,35.64,36.0,35.99,35.36,36.12,38.83,40.25,39.96,39.59,40.12,40.33,39.47,35.69,36.48,36.11,35.81,36.33,36.78,35.36,35.93,39.91,40.0,41.92,48.59,48.81,48.54,48.29,48.5,50.53,50.81,51.01,51.25,50.49,51.01,46.62,38.12,38.17,38.05,54.68,50.86,59.64,61.87,61.38,61.4,61.67,61.82,61.66,62.02,61.49,53.29,52.1,52.47,50.98,53.38,52.93,52.84,50.67,51.76,49.16,51.15,52.36,52.27,52.16,53.38,51.85,49.98,49.08,48.94,54.43,55.92,54.91,64.39,63.6,65.39,64.26,63.53,63.75,63.3,64.42,59.83,50.16,41.24,41.56,41.26,41.79,41.25,41.62,42.22,41.92,42.45,58.47,53.6,47.59,48.12,48.86,48.62,48.68,48.76,49.02,49.2,30.46,29.84,29.7,29.28,29.26,28.67,29.42,28.37,28.52,27.24,27.44,26.82,27.34,27.33,62.8,63.5,66.2,66.8,67.0,66.4,67.6,67.4,76.9,71.0,74.4,74.3,76.1,76.0,73.1,72.1,77.6,74.8,74.5,72.9,73.0,71.3,70.5,20.9,23.1,24.7,23.9,25.7,26.5,27.4,27.8,29.1,30.2,31.1,30.9,31.1,31.1,33.6,33.7,33.8,34.7,29.7,25.59,27.29,27.22,27.74,25.88,27.2,26.54,26.53,27.08,26.92,26.46,26.72,26.39,26.11,27.01,26.7,26.61,26.95,26.96,27.09,26.68,28.53,28.75,28.53,25.53,28.74,29.03,28.85,26.71,25.82,29.67,28.89,26.91,28.93,25.89,28.76,26.09,27.03,28.77,28.66,28.21,28.95,28.56,28.1,28.3,27.6,29.0,28.5,29.7,31.6,31.0,30.6,31.2,30.7,31.2,31.6,31.8,31.8,31.6,32.5,30.7,23.2,23.9,25.7,25.3,25.4,26.6,25.9,26.4,26.2,27.0,27.2,26.7,26.1,27.3,27.8,27.0,26.3,20.8,20.9,20.9,21.7,21.7,22.8,22.4,22.1,22.8,22.2,22.8,22.9,23.5,23.2,23.5,23.0,25.1,22.7,23.69,25.59,22.89,24.77,24.37,25.23,25.04,24.81,25.03,26.8,28.34,28.8,27.17,27.69,30.23,27.74,21.47,22.03,21.62,21.77,23.58,24.7,24.34,22.66,16.04,15.84,18.29,17.45,18.27,19.5,18.55,17.3,20.33,20.64,20.89,18.78,19.22,20.78,20.69,26.02,26.84,26.09,25.63,26.44,27.51,26.7,30.28,29.37,28.29,28.82,29.24,28.84,28.55,30.57,30.34,29.84,29.74,30.59,29.02,30.01,32.31,32.84,33.04,32.62,32.72,33.25,32.81,32.53,31.45,32.9,35.0,34.45,34.5,33.64,32.52,33.85,32.19,33.18,33.4,33.02,37.04,35.31,35.46,34.95,34.46,35.05,27.04,27.06,29.3,30.11,30.59,30.56,28.6,31.72,32.16,32.86,33.36,33.55,32.23,32.15,26.59,28.92,29.32,28.71,28.73,28.83,28.93,24.84,26.14,24.84,26.14,28.15,27.99,27.99,27.35,27.76,31.48,30.66,31.32,32.02,30.7,32.87,32.5,31.91,29.06,29.02,29.42,28.97,28.85,28.58,29.1,28.82,31.98,31.56,31.75,31.64,32.75,30.95,32.01,30.59,30.52,30.37,31.16,31.47,30.92,31.02,46.4,47.4,49.5,50.2,50.1,50.4,49.1,49.4,49.4,49.3,49.2,49.1,49.0,48.4,49.7,53.4,55.2,55.0,57.7,64.7,65.8,68.4,70.7,32.0,33.0,35.9,37.0,36.8,36.9,37.2,35.2,50.4,44.58,31.34,31.81,33.15,32.82,33.76,32.84,58.16,49.45,48.6,49.95,49.67,49.24,49.78,35.94,35.88,31.54,35.52,36.28,34.47,35.0,35.4,44.02,45.15,43.02,44.77,44.62,44.06,46.39,44.26,40.08,40.08,39.69,39.17,38.6,38.86,39.23,47.23,47.46,47.67,46.96,47.1,47.35,47.46,35.46,38.63,40.34,39.45,40.57,41.09,39.33,45.36,47.49,47.7,42.96,44.59,42.74,44.71,38.41,38.31,38.52,39.4,39.81,38.96,39.76,39.1,45.7,46.55,47.99,48.11,47.72,48.07,48.36,47.53,24.2,25.85,25.27,26.97,26.85,26.96,25.46,26.55,27.35,27.12,26.48,27.79,26.13,29.37,28.05,26.92,27.67,26.16,28.01,26.86,26.82,26.97,30.6,26.49,27.65,27.26,26.15,28.39,27.2,27.16,27.55,27.35,28.23,30.2,27.73,25.91,28.83,28.45,27.18,27.12,28.93,27.13,25.82,27.87,30.91,30.62,31.4,31.15,32.7,30.17,28.83,28.68,30.27,29.82,31.02,30.4,30.99,30.37,30.99,28.24,27.86,29.91,25.76,25.76,27.36,26.37,24.95,26.6,24.55,28.56,28.51,26.93,36.4,32.58,32.71,33.44,31.98,30.59,32.41,30.87,32.02,32.11,44.07,37.68,40.27,39.1,39.64,37.84,39.3,38.4,37.13,36.24,36.52,38.42,37.14,38.08,36.12,36.58,60.62,59.63,59.96,59.74,58.75,54.07,51.22,50.97,51.55,50.93,51.47,50.58,51.18,51.32,50.61,51.47,50.4,51.11,53.18,56.05,56.0,56.36,55.95,54.87,51.0,49.2,49.56,50.04,50.52,50.17,50.13,50.05,49.81,50.17,50.08,49.89,50.17,51.13,31.54,30.78,32.75,31.89,32.15,32.37,32.0,28.26,31.8,35.88,36.71,37.59,35.64,37.95,35.78,35.7,32.46,35.63,27.87,28.91,29.51,31.83,33.0,30.18,29.31,34.16,33.26,32.83,32.17,31.09,32.88,34.76,37.18,38.07,36.27,35.19,34.84,36.44,34.69,35.29,35.43,35.2,42.46,45.21,44.37,45.25,46.18,45.76,46.15,46.16,45.72,46.3,46.1,45.86,42.98,43.12,43.51,45.03,45.65,46.03,46.65,46.03,46.1,46.24,46.72,45.48,34.32,40.28,38.58,39.51,42.89,43.75,43.68,45.11,42.18,32.76,35.96,35.71,36.81,39.98,41.02,41.93,40.97,39.19],[990.7,995.8,992.6,1006.3,999.3,999.4,1001.7,998.0,987.8,1002.1,1004.7,1011.3,986.7,997.6,996.4,998.1,1003.6,999.6,1000.3,1005.3,993.2,996.6,999.8,1014.0,1009.1,1005.3,996.8,999.5,1002.2,1004.5,1012.4,998.9,1010.7,1012.5,1006.8,986.9,1004.7,1009.3,998.9,1019.2,1008.4,1006.8,1001.4,1007.3,1014.3,1006.5,1002.3,999.5,1019.5,1003.9,1011.5,1022.6,1018.7,1015.0,1011.4,998.2,1017.4,1007.3,997.1,1001.1,1020.7,1009.2,1019.5,1010.8,988.9,1007.0,982.0,993.4,1003.2,1006.3,1003.5,996.9,1004.7,1007.2,1000.9,1002.8,1004.5,1000.5,1007.7,996.7,990.0,996.5,1010.4,999.1,999.4,1002.7,1001.4,995.0,999.9,993.1,1014.8,1003.0,1013.0,1006.2,1000.0,997.9,996.9,1003.1,994.8,1000.8,993.8,986.2,1002.7,1004.4,1001.8,999.3,998.0,1011.3,1001.0,990.8,1013.3,996.3,996.8,1006.5,999.9,1003.0,1002.1,996.6,1009.4,1003.7,1009.6,996.3,1001.5,1004.7,997.6,1006.0,1002.8,1012.5,1002.2,997.2,1004.1,1000.6,1010.3,1010.7,1004.7,1011.5,1006.0,1015.3,1005.0,1002.8,1000.5,996.8,1019.1,1013.2,1004.8,1008.8,1007.4,999.1,996.4,1002.3,1000.0,993.6,1000.0,999.9,998.0,994.7,982.3,993.5,989.8,989.8,995.3,1005.7,1001.0,1002.7,994.5,996.2,1004.0,1004.1,993.1,993.2,996.6,990.8,998.3,1000.0,999.5,1002.9,1003.0,993.4,997.5,1004.8,1000.2,998.4,996.2,998.5,1003.5,992.3,992.5,999.6,997.3,1009.6,1004.8,1004.1,1001.2,992.3,1000.6,1002.1,1008.3,1007.0,997.1,1002.7,1001.9,998.8,1002.6,1006.1,1007.0,1001.5,1001.7,1000.6,997.7,1002.4,1004.5,1000.2,1001.9,1008.7,1006.7,1003.2,1004.2,1015.6,993.2,997.5,1016.0,1002.1,1004.9,1002.7,995.9,995.1,1002.4,989.1,996.0,996.9,1007.9,996.6,1010.2,1006.0,998.9,1002.1,1003.6,1007.3,1008.3,1006.1,1004.5,996.8,997.7,1003.5,1013.0,1027.4,1004.8,1000.7,1005.8,1014.1,1001.9,1002.1,1000.4,1005.9,999.9,994.5,1027.1,1004.5,1001.6,1015.3,1006.4,1002.3,993.5,1004.3,997.2,1003.5,993.5,1001.5,1006.8,1003.4,997.6,1000.5,1006.5,1007.4,999.6,998.7,1003.0,1005.3,1001.3,1003.1,1002.8,997.6,1000.5,1000.4,1014.4,1004.3,996.7,1001.9,1002.3,1008.2,1004.6,986.1,1000.5,1014.7,997.7,994.7,998.3,1000.5,990.8,991.3,996.9,1002.7,1005.4,1010.4,1000.3,1000.7,999.8,1011.0,989.0,1009.4,1006.8,1000.6,1013.3,1006.4,996.4,1004.1,1008.2,1002.9,1007.7,1004.5,1004.2,1007.5,998.0,1004.7,1005.6,1009.3,1005.9,1003.9,993.0,1003.2,997.8,1002.7,1006.5,1003.6,1002.6,1000.6,1009.1,999.0,996.5,1001.1,1001.6,1002.3,1008.7,1008.9,1002.2,1000.1,1007.3,1007.8,1003.5,1005.2,1005.1,1005.4,1002.1,1004.1,1002.5,1000.2,1002.8,999.0,1002.6,1005.2,1006.3,1007.3,1004.2,1004.8,1003.4,1005.0,1006.6,1002.6,1002.0,1005.5,999.7,999.6,1006.4,1005.3,1008.5,1006.6,1001.0,1004.1,1004.8,1005.6,1008.6,1007.4,1006.1,1002.3,999.9,1005.0,1007.6,1013.8,1015.8,1010.3,1007.1,1006.8,1003.5,1009.3,1004.6,998.6,1009.3,1006.4,1006.5,1004.0,1008.1,1005.5,1006.3,1004.9,1003.9,1005.7,1004.0,1004.3,1005.1,1010.1,1006.1,1006.5,1021.3,1011.8,1003.0,1007.1,1005.7,1006.9,1004.9,1010.4,1006.2,1009.4,1008.1,1008.4,1006.2,1006.3,1003.2,1004.9,1007.9,1004.3,1003.5,1006.8,1003.8,1000.6,1006.8,1004.1,1006.9,1006.3,1005.1,1008.1,1008.8,1004.8,1002.6,1008.4,1002.8,1006.4,1004.3,1004.9,997.3,997.9,997.2,998.9,997.0,1002.8,1013.0,1010.6,1007.5,1006.2,1004.7,1003.7,997.1,1005.8,996.1,1005.0,1002.4,999.2,1014.9,1006.6,1002.6,997.6,1002.6,1003.1,999.0,1003.1,1004.4,1000.6,994.0,992.5,998.0,996.3,997.6,996.7,993.9,994.7,1000.0,996.5,998.9,996.8,1007.5,1001.5,998.5,1000.7,1000.0,1009.2,1003.1,992.4,1004.0,996.2,992.5,988.7,997.5,996.1,1008.0,993.1,1019.5,1002.7,1009.4,1004.4,1000.5,1007.7,1001.5,989.6,991.4,989.5,989.3,984.2,994.0,990.5,997.6,990.4,1001.6,995.1,999.1,997.5,987.2,999.0,1001.0,1001.4,995.0,994.1,999.7,1006.7,995.7,1004.6,1003.1,994.1,999.3,1011.4,1000.0,1001.6,1014.9,1000.2,1006.3,997.8,1019.6,989.1,994.6,1009.3,1012.7,1000.4,1004.5,992.2,999.5,994.1,1003.9,989.2,1001.3,1003.7,995.3,990.3,999.3,996.9,1004.3,995.6,1002.4,999.8,992.6,996.1,996.1,996.3,993.7,997.5,997.4,1018.6,995.8,996.9,995.3,994.1,986.6,999.7,997.4,997.8,995.8,1000.4,1001.6,996.4,999.2,993.0,995.4,993.5,997.5,1005.9,995.9,1004.0,999.5,1001.1,1001.7,1001.6,1000.8,1000.5,1007.6,1002.5,999.4,999.3,1000.2,1001.9,1000.0,1001.4,1002.9,1001.1,996.3,1002.6,1002.6,1007.6,1004.7,1004.0,1000.6,1004.8,1004.7,1000.7,1005.4,1013.7,1008.8,1004.3,1009.8,1004.4,1010.3,1002.1,997.8,1002.7,995.3,996.4,1000.5,1000.7,993.2,1000.1,996.1,1000.4,994.6,988.1,998.5,995.9,1001.3,997.4,1009.2,998.8,1004.4,1005.3,1004.5,1003.0,1000.3,999.2,1010.7,1001.8,1003.9,1009.8,1000.5,1003.7,999.0,998.0,993.4,1003.9,991.3,999.6,997.5,1006.0,1013.6,1001.9,1002.3,998.7,1000.6,1003.8,1014.0,997.4,999.7,998.3,996.9,997.4,1000.6,994.9,991.1,991.7,994.3,1004.6,1008.1,997.4,1000.0,998.6,1004.0,1002.3,997.1,992.0,999.0,998.7,995.0,1000.1,992.2,995.1,998.5,996.6,1017.2,1002.1,995.6,1000.8,996.1,1002.3,1010.4,1008.2,998.4,990.1,1000.5,1001.5,1004.7,1004.6,1005.9,1006.5,1005.8,1000.6,1004.7,1001.6,1005.7,1002.4,998.4,1004.5,1003.8,1002.7,1005.4,998.0,1004.0,994.8,1000.8,1003.5,1001.1,1008.9,1006.4,1008.9,1006.4,997.9,1001.2,1001.6,1002.3,1003.1,1000.9,996.4,1004.5,1001.5,1002.3,992.0,1002.9,1000.1,1001.3,998.7,1007.4,999.2,1011.1,1000.2,1001.6,1002.8,1000.6,1004.0,1001.3,993.2,992.0,999.2,998.4,1010.7,1008.2,1000.4,994.5,990.8,999.5,1000.7,1000.2,997.9,995.4,1001.6,1000.3,1008.1,1007.6,1005.4,1007.0,991.3,1010.4,1003.8,1001.6,994.9,1001.1,1006.9,1004.2,994.8,996.4,1003.9,994.3,997.6,1004.9,997.7,1005.0,998.4,1007.6,1002.4,1012.0,1006.7,1011.5,1002.7,1014.1,1006.4,1002.9,1006.5,1008.5,1010.5,1008.2,1012.1,1009.3,1008.2,1001.0,1006.0,1011.2,1008.0,999.5,997.6,1010.2,993.5,995.5,1001.4,1000.0,999.7,1007.1,1001.2,993.4,1001.0,1002.1,994.8,993.8,999.0,1011.1,1004.1,1011.1,1010.6,1006.5,1002.7,1007.7,1003.5,997.0,1010.9,1006.7,1001.4,999.9,1003.2,1010.8,999.9,997.6,1002.3,1001.2,1006.3,1003.0,998.1,1003.6,1001.0,1003.1,1005.6,1003.5,1002.5,1018.7,1011.3,1000.9,997.6,1000.8,1001.7,1001.2,1004.6,999.6,1011.0,998.5,996.8,989.0,996.2,999.1,998.6,1000.3,1014.1,1004.4,1012.2,1007.7,1007.3,1011.3,1006.6,1000.0,1003.3,1001.6,997.1,1005.5,999.9,990.0,999.8,998.4,1020.0,997.9,1002.9,1001.6,1003.1,995.7,986.8,1004.8,1000.1,1011.2,1006.5,1002.5,996.8,990.6,996.6,990.2,986.0,997.6,1002.5,994.3,997.7,992.7,997.2,993.3,994.8,994.9,995.9,999.1,994.1,996.2,995.6,997.5,1000.7,1002.2,1004.3,998.7,1009.4,995.2,990.2,997.8,1001.2,1001.4,1007.7,1004.5,1000.9,1013.7,999.4,990.1,1001.7,995.6,1002.7,1005.3,1004.8,1007.5,1002.3,1015.7,997.2,1002.8,999.2,1001.9,1005.5,997.7,994.2,1006.1,1002.3,1002.7,999.2,1003.0,995.6,992.2,998.3,994.8,998.0,1013.1,1002.8,1001.4,996.7,1001.2,1012.5,994.5,1003.1,1003.3,995.7,1002.4,1000.8,1010.5,1015.1,1010.9,1012.2,1006.8,1004.1,1006.2,1006.8,1005.1,1003.5,1003.3,1001.6,1004.6,1003.4,1005.3,1008.1,1004.8,1004.6,1007.5,1017.0,1010.5,1005.8,1007.2,1006.0,1007.8,1006.5,1010.8,1003.0,1002.6,1005.0,1001.7,1000.2,1005.1,1006.4,1003.6,998.1,1002.3,999.9,996.5,994.1,998.2,1001.0,999.2,1005.5,998.7,994.7,997.2,992.7,992.1,988.8,991.5,995.1,1008.9,992.8,996.8,990.3,1005.4,995.3,989.9,1001.9,1009.6,1004.3,1001.5,999.7,992.9,993.0,991.6,1016.9,1002.8,992.7,1004.8,999.5,1006.0,1001.6,1001.3,1000.3,1007.4,1009.0,1009.9,1008.6,1009.4,1008.8,1007.0,1007.5,1004.8,1005.0,1004.2,1007.4,1011.7,1006.8,1014.3,1007.8,1010.0,1007.6,1005.2,1006.4,998.8,1004.6,998.8,1006.5,1001.9,1007.7,1001.4,1001.1,999.6,1002.3,993.5,999.4,1000.8,992.1,994.6,1003.1,997.8,998.9,1006.5,1002.4,997.8,999.2],[970.9,979.1,978.6,987.0,982.6,989.5,982.7,970.9,976.7,993.3,992.0,1006.0,980.0,982.8,985.4,976.7,987.4,976.0,969.3,985.8,970.7,973.4,969.3,995.5,991.6,986.6,979.5,981.6,984.0,979.5,995.4,983.8,995.9,991.1,980.9,962.0,962.0,986.3,981.2,1005.4,984.5,984.5,979.8,979.8,1004.8,999.4,984.6,977.0,998.2,990.0,999.2,1006.0,1006.3,1003.2,977.0,989.2,1007.8,987.2,964.3,974.0,1004.7,989.2,1002.5,979.5,966.7,964.3,973.6,984.2,992.0,985.7,996.2,972.2,976.9,996.6,989.4,989.0,990.7,972.2,998.3,986.7,976.9,983.6,1004.7,979.0,980.9,991.1,987.9,981.2,976.9,975.5,1000.5,986.4,999.4,987.6,984.0,984.5,986.8,975.5,985.9,986.8,982.7,976.4,987.9,993.2,991.3,985.4,976.4,995.2,981.6,981.6,997.6,976.7,990.6,994.8,988.2,987.2,976.7,981.7,999.0,984.4,1003.0,988.4,996.8,989.8,986.0,991.0,981.7,1000.2,998.6,988.4,992.6,989.3,994.2,988.9,982.0,1001.7,982.0,1000.5,985.0,982.3,978.3,986.0,996.7,1003.0,989.0,987.4,978.3,984.8,989.9,989.4,988.4,986.3,987.9,987.9,989.0,973.1,970.0,976.1,978.3,970.8,970.0,991.6,994.9,988.7,985.9,980.7,994.6,996.7,984.8,982.7,973.1,979.5,973.1,989.6,988.9,993.5,986.7,980.9,979.8,992.2,979.8,984.9,982.7,981.1,984.8,984.0,973.6,990.0,973.6,982.4,980.9,981.4,979.0,975.5,981.2,975.5,983.1,985.8,971.3,979.8,979.4,971.3,971.3,990.9,989.4,985.0,981.9,980.7,979.3,979.3,985.0,982.1,981.7,989.6,990.8,982.9,981.7,1006.4,977.9,979.7,995.3,985.1,977.9,980.2,976.3,974.4,979.6,970.1,977.6,970.1,991.2,983.0,997.1,985.9,990.3,984.2,983.0,991.2,990.7,996.5,986.9,984.5,979.9,979.9,1001.8,1017.0,990.2,986.8,996.6,997.2,986.8,982.1,982.2,982.1,992.4,986.0,1012.9,982.7,983.5,997.5,987.9,983.2,971.9,971.9,981.5,983.2,977.1,983.8,992.9,981.8,978.7,977.1,988.1,992.9,982.3,984.9,989.5,991.9,978.2,978.2,990.9,978.5,987.6,989.0,1002.9,993.9,986.9,989.1,978.5,994.8,991.1,975.4,990.8,1003.8,988.2,981.4,981.0,975.4,980.4,983.7,989.1,990.2,992.5,992.5,995.3,986.3,980.4,1002.6,980.3,995.7,993.8,984.6,999.7,992.2,987.5,980.3,990.9,985.7,987.1,983.0,987.8,987.9,977.2,977.2,978.9,988.9,981.6,981.2,972.6,987.5,980.3,972.6,986.9,986.5,988.2,982.9,994.6,983.6,982.1,987.1,988.0,982.1,996.8,999.3,992.7,991.3,993.4,999.9,993.0,996.2,995.5,991.3,987.4,992.5,986.0,988.4,992.9,989.6,993.4,995.3,997.0,998.6,990.9,993.8,986.0,997.0,999.3,995.0,994.8,996.0,991.5,990.8,998.7,994.5,1002.8,999.1,993.2,990.8,990.3,992.8,991.9,994.2,991.0,985.8,985.8,985.8,986.2,1000.1,1004.3,994.6,992.8,981.9,983.0,981.9,983.2,988.1,997.9,993.2,996.8,994.7,996.1,994.0,997.4,993.5,991.0,994.1,991.2,997.5,983.2,989.8,990.1,1000.7,1010.7,1003.6,997.7,1000.4,997.8,1001.4,1000.5,999.3,1000.6,1003.6,1000.8,989.8,997.1,996.3,995.2,995.4,995.8,995.3,992.1,993.8,990.4,986.4,993.1,992.7,996.5,996.6,986.4,997.4,1000.0,999.5,994.7,1002.9,995.7,998.2,998.8,996.7,988.5,990.6,989.9,993.3,987.1,987.1,1001.8,999.0,1001.7,998.4,994.7,992.9,984.7,998.1,988.2,984.7,995.2,993.2,1007.8,997.8,995.4,993.4,994.6,993.0,992.9,992.9,991.6,981.8,980.2,973.5,983.8,984.0,973.5,976.5,970.3,982.2,982.8,980.4,982.4,970.3,984.8,978.2,977.1,987.3,981.7,990.5,988.2,976.4,986.8,977.1,974.2,972.9,976.7,977.2,991.7,976.0,994.6,987.9,993.2,986.0,986.3,995.0,972.9,971.6,980.0,974.3,973.0,969.6,971.5,978.2,976.3,974.8,989.1,977.4,984.6,975.2,970.1,982.8,988.6,991.3,977.8,969.6,991.4,994.4,985.8,993.3,987.0,975.7,985.5,1000.4,987.7,975.7,998.7,989.5,996.0,984.8,998.1,982.4,982.0,1001.4,995.5,990.2,982.0,979.0,989.8,979.6,992.8,969.4,987.2,991.8,978.1,978.3,983.8,969.4,993.1,984.2,990.7,981.3,977.5,980.5,982.8,975.6,976.0,980.6,975.6,1012.5,976.3,976.3,969.7,977.0,971.6,982.7,974.2,973.1,979.0,983.9,985.7,974.1,978.3,973.2,981.3,980.8,969.7,987.1,982.6,989.3,980.6,982.9,986.6,987.6,979.3,985.5,993.0,986.5,977.4,982.0,984.2,980.7,982.2,977.4,991.3,981.4,988.9,993.3,979.6,989.4,993.4,990.6,988.9,997.0,993.0,988.7,987.8,1002.6,994.3,990.6,996.0,979.6,999.6,976.5,975.1,991.0,990.6,982.4,993.9,975.1,988.2,985.7,987.9,993.8,990.9,974.7,985.0,974.7,975.2,978.3,995.9,980.5,984.9,987.6,981.9,975.2,970.0,971.4,989.6,978.4,980.3,985.3,979.5,970.0,981.3,986.8,975.0,990.7,971.4,980.3,971.4,978.3,994.3,979.6,985.6,977.3,982.0,977.3,993.9,977.6,978.4,979.5,978.5,978.5,977.6,971.1,975.3,970.7,972.1,984.8,983.6,970.7,986.0,978.5,983.0,978.1,978.2,969.7,969.7,980.1,976.2,982.1,969.8,976.1,978.3,969.8,997.0,988.3,975.8,979.7,975.3,975.3,985.1,988.4,975.4,972.1,975.6,972.1,988.0,987.1,982.8,994.1,991.3,981.9,981.9,984.6,989.6,979.5,976.8,982.2,978.4,976.8,994.9,983.9,991.1,981.4,977.6,981.9,977.6,995.7,996.2,995.7,996.2,970.8,973.9,981.7,981.0,970.8,985.8,980.4,983.4,980.3,989.8,971.1,987.8,971.1,986.5,978.7,981.4,980.2,989.9,981.4,978.0,978.0,980.7,982.7,981.4,972.4,972.9,983.1,972.4,995.4,986.7,981.8,973.3,971.5,976.2,971.5,978.9,972.7,980.6,984.8,983.1,992.5,988.0,978.1,983.2,971.9,985.9,982.3,983.6,970.9,976.6,994.4,985.9,969.4,974.9,988.6,974.9,973.0,982.2,973.7,983.8,980.1,982.2,987.1,994.8,991.4,993.7,969.4,1007.5,996.4,986.4,979.0,991.3,985.1,979.0,1001.5,997.6,983.9,972.8,981.4,984.4,972.8,982.0,982.8,985.6,970.8,979.3,979.9,973.3,970.8,986.9,981.1,972.0,987.1,978.8,972.4,962.6,962.6,990.7,987.0,993.4,996.2,992.3,983.4,983.4,988.9,977.0,996.2,990.5,981.2,978.5,977.0,991.1,981.9,974.6,981.4,984.2,985.9,974.6,976.0,979.2,982.6,987.2,985.8,982.0,976.0,1007.0,997.4,989.3,979.8,990.8,988.4,983.8,979.8,991.0,998.2,988.9,987.8,970.3,973.1,982.0,970.3,993.8,1009.9,999.3,1005.0,987.4,1002.0,988.1,995.0,989.2,973.2,992.3,989.9,973.2,987.3,981.9,985.0,990.7,1011.2,991.0,996.8,995.1,991.4,985.1,973.2,995.9,973.2,1004.4,998.9,991.7,989.9,980.8,988.5,974.9,971.2,971.2,992.4,987.2,986.7,972.7,981.5,973.9,976.9,985.0,972.7,991.5,977.6,977.9,986.7,972.7,988.3,980.8,975.7,972.7,1002.0,987.4,983.4,984.1,979.3,981.4,988.9,987.2,979.3,1003.6,975.9,970.5,981.2,971.6,984.3,985.5,977.2,991.9,970.5,1006.2,972.7,976.1,976.1,979.1,982.4,973.7,970.8,983.1,970.8,992.1,981.6,989.1,982.0,977.3,983.2,983.3,977.3,1001.0,988.1,988.9,975.0,978.2,995.9,973.3,973.3,995.9,986.7,990.1,992.9,1000.9,1003.2,1001.6,1004.0,998.4,995.7,998.5,999.2,998.7,996.3,996.0,994.2,997.5,996.1,986.7,1002.3,994.7,999.4,1001.2,1005.8,1005.6,997.6,999.2,1000.4,998.7,996.5,1004.8,996.8,996.0,1000.2,995.8,994.1,999.4,994.1,993.2,987.1,993.4,983.8,978.8,980.0,984.6,980.8,978.8,988.8,988.1,984.5,979.5,976.7,971.2,972.5,975.5,971.2,1002.0,982.7,986.9,979.9,993.4,985.6,983.2,994.7,1004.7,996.5,995.5,979.9,982.5,980.3,978.3,1003.0,986.5,983.5,997.6,989.1,1001.1,995.2,993.6,978.3,997.8,1002.9,1000.3,997.2,1002.5,1003.0,996.4,1001.5,998.1,995.5,995.4,995.4,1002.6,1000.6,1007.9,998.1,1004.6,999.7,999.8,996.6,992.4,998.9,991.5,991.5,989.0,997.7,992.1,991.1,984.2,989.2,977.4,981.8,977.4,982.3,981.3,993.5,984.6,982.3,992.3,983.9,974.9,974.9],[1006.8,1014.7,1011.4,1018.0,1008.8,1012.8,1016.4,1018.0,997.7,1012.1,1010.8,1015.9,993.5,1009.1,1006.9,1015.9,1017.3,1015.4,1014.7,1021.2,1010.0,1012.3,1021.2,1029.3,1022.7,1021.1,1010.0,1013.5,1016.3,1029.3,1026.8,1014.4,1023.5,1028.0,1022.3,999.8,1028.0,1029.6,1009.3,1028.0,1017.0,1019.6,1014.7,1029.6,1025.2,1014.8,1022.9,1038.9,1030.9,1014.9,1024.5,1037.9,1026.6,1020.3,1038.9,1003.3,1028.2,1014.6,1014.6,1009.3,1030.1,1022.0,1029.8,1020.7,1002.4,1030.1,998.8,1002.9,1014.0,1019.7,1010.4,1012.8,1014.5,1014.6,1010.3,1014.1,1015.3,1019.7,1016.6,1008.1,1005.3,1007.9,1017.9,1012.3,1012.5,1010.2,1018.9,1011.4,1018.9,1005.9,1028.2,1015.0,1024.0,1021.7,1014.8,1009.7,1009.5,1028.2,1005.5,1008.0,1002.1,993.7,1019.3,1013.0,1017.5,1010.2,1019.3,1028.7,1021.3,1002.6,1023.0,1008.9,1005.0,1015.9,1019.5,1022.7,1028.7,1005.1,1026.4,1014.1,1017.8,1003.1,1007.7,1016.5,1008.2,1017.7,1026.4,1020.1,1010.5,1010.6,1015.4,1011.4,1022.3,1019.4,1021.9,1020.1,1022.3,1026.9,1027.8,1016.4,1014.7,1010.5,1024.8,1023.8,1022.4,1025.7,1027.8,1012.6,1008.0,1014.6,1015.9,1006.7,1008.0,1011.1,1008.6,1016.3,992.4,1005.0,1000.0,1004.7,1016.3,1015.7,1008.1,1017.4,1005.6,1003.7,1014.3,1011.5,1001.4,998.7,1007.4,1001.1,1017.4,1007.7,1013.9,1016.0,1015.9,1011.5,1011.9,1019.3,1019.3,1006.0,1009.2,1018.1,1014.9,998.5,1010.5,1010.2,1018.1,1026.3,1017.8,1019.9,1015.4,1004.2,1024.5,1026.3,1020.6,1017.6,1008.5,1019.5,1018.3,1012.4,1020.6,1019.2,1023.0,1018.1,1015.8,1018.9,1011.9,1023.0,1021.7,1014.4,1018.0,1022.4,1018.9,1017.0,1022.4,1027.4,1002.2,1007.8,1027.1,1010.6,1027.4,1015.8,1006.6,1005.9,1019.1,1004.4,1009.0,1019.1,1019.1,1009.7,1024.2,1018.2,1007.0,1018.9,1024.2,1017.1,1017.1,1020.6,1015.0,1011.9,1009.8,1020.6,1021.3,1036.1,1019.2,1009.3,1009.7,1027.7,1016.2,1014.7,1017.8,1036.1,1010.2,1004.5,1046.4,1021.1,1015.2,1028.0,1023.2,1020.1,1010.8,1046.4,1025.7,1024.1,1016.9,1027.2,1029.9,1025.0,1021.2,1029.9,1028.0,1028.1,1015.5,1019.2,1021.2,1022.2,1024.0,1028.1,1013.1,1010.5,1008.5,1017.7,1025.8,1009.8,1011.7,1015.8,1025.8,1021.1,1015.1,995.5,1009.7,1023.7,1006.8,1015.8,1009.4,1023.7,1000.9,1001.0,1010.2,1016.5,1016.7,1022.0,1012.6,1010.2,1022.0,1022.0,995.9,1026.3,1016.0,1013.3,1026.8,1017.8,1003.2,1026.8,1022.4,1019.0,1024.0,1023.9,1020.5,1023.6,1015.1,1024.0,1019.7,1026.9,1025.3,1020.5,1005.7,1020.1,1013.9,1026.9,1019.1,1014.1,1013.0,1013.4,1019.0,1011.2,1006.3,1009.7,1009.9,1019.1,1023.6,1016.5,1011.1,1007.9,1016.9,1017.3,1013.9,1017.0,1015.7,1023.6,1012.9,1013.1,1011.0,1008.3,1013.4,1009.5,1011.8,1015.7,1014.9,1018.9,1018.1,1016.9,1018.9,1017.3,1016.5,1011.9,1010.4,1015.1,1008.3,1007.3,1012.6,1013.5,1016.1,1013.8,1008.9,1017.3,1016.5,1019.6,1022.1,1022.9,1016.2,1014.3,1012.4,1022.9,1022.3,1023.0,1025.0,1021.0,1017.2,1018.8,1017.6,1025.0,1019.1,1009.9,1018.6,1015.7,1014.3,1009.5,1016.7,1013.8,1015.2,1011.0,1011.9,1016.1,1009.3,1014.0,1019.1,1020.1,1015.5,1015.2,1029.4,1017.9,1008.3,1012.1,1011.3,1014.1,1012.9,1016.4,1012.8,1014.2,1014.7,1029.4,1015.6,1013.6,1010.8,1013.4,1015.9,1014.4,1009.5,1021.1,1011.3,1008.8,1014.9,1012.3,1015.5,1014.3,1021.1,1015.7,1017.7,1009.7,1011.3,1015.8,1010.5,1016.2,1011.6,1013.1,1005.7,1004.2,1004.5,1005.0,1003.2,1017.7,1020.2,1020.2,1012.9,1012.7,1011.6,1013.8,1004.9,1013.6,1011.8,1020.2,1011.2,1006.2,1021.5,1014.2,1010.9,1003.1,1012.7,1013.3,1023.2,1023.2,1018.3,1022.3,1013.4,1016.5,1025.8,1017.1,1025.8,1014.0,1008.8,1013.5,1020.4,1021.0,1018.9,1021.0,1033.6,1028.2,1017.1,1016.6,1025.7,1024.7,1019.2,1010.1,1021.8,1014.8,1016.6,1009.2,1021.0,1015.7,1030.7,1022.6,1041.8,1022.2,1027.9,1027.4,1017.4,1022.5,1041.8,1009.9,1006.1,1003.9,1006.2,996.1,1013.4,1007.1,1012.8,1006.1,1019.6,1019.8,1011.3,1014.1,1001.9,1021.3,1017.8,1016.9,1008.2,1021.3,1013.1,1013.1,1014.0,1018.0,1019.7,1007.0,1013.1,1024.3,1009.5,1024.3,1020.8,1014.5,1016.4,1007.9,1029.0,999.2,1015.0,1023.8,1024.8,1014.7,1029.0,1004.4,1011.7,1015.4,1024.0,1006.1,1019.2,1018.6,1016.9,1024.2,1017.2,1024.2,1016.2,1009.9,1017.7,1013.4,1012.6,1011.2,1014.9,1015.5,1009.2,1012.3,1017.7,1031.2,1014.7,1010.0,1008.5,1013.7,1007.0,1010.1,1019.2,1016.5,1011.2,1013.0,1017.5,1013.6,1016.1,1009.0,1014.0,1011.0,1031.2,1020.4,1025.2,1024.1,1016.3,1016.3,1019.4,1018.4,1016.3,1018.3,1024.1,1017.9,1016.8,1017.9,1019.8,1024.6,1013.8,1025.2,1023.2,1015.5,1016.5,1016.2,1016.9,1023.0,1021.6,1015.8,1010.5,1014.7,1018.8,1016.3,1022.5,1026.0,1028.8,1018.3,1021.9,1028.8,1018.1,1020.5,1011.0,1011.7,1003.0,1003.4,1007.4,1020.5,999.0,1006.3,1007.3,1009.8,1001.4,996.7,1006.4,1009.8,1016.5,1008.4,1023.2,1014.0,1019.7,1018.2,1018.1,1023.2,1011.7,1013.7,1021.9,1015.0,1017.1,1027.5,1019.5,1027.5,1014.7,1018.4,1017.8,1019.5,1012.4,1012.7,1019.5,1023.1,1029.6,1021.8,1025.3,1018.5,1017.2,1029.6,1025.8,1010.1,1011.9,1011.2,1013.9,1014.4,1025.8,1008.2,1009.2,1008.9,1013.0,1023.3,1026.4,1026.4,1010.3,1012.3,1014.5,1019.0,1013.2,1011.0,1019.0,1012.4,1015.3,1024.3,1011.2,1013.2,1019.1,1024.3,1029.7,1015.5,1006.7,1012.9,1012.4,1029.7,1024.8,1023.0,1013.8,1004.7,1026.8,1026.8,1016.7,1017.1,1019.3,1018.3,1021.7,1015.6,1021.7,1019.6,1021.6,1018.9,1015.3,1019.4,1019.3,1021.6,1015.0,1009.7,1016.5,1005.5,1016.6,1019.8,1019.8,1019.8,1015.9,1019.8,1015.9,1013.4,1014.8,1019.3,1017.3,1019.8,1012.4,1008.5,1019.7,1015.9,1015.0,1003.8,1013.4,1019.7,1014.2,1011.3,1026.6,1020.0,1025.7,1016.8,1016.6,1026.6,1015.3,1017.2,1013.6,1010.0,1005.3,1009.8,1017.2,1025.1,1023.5,1017.6,1011.1,1007.3,1018.4,1025.1,1020.5,1017.6,1010.4,1017.5,1028.3,1025.4,1028.0,1026.8,1028.2,1014.9,1033.3,1030.5,1024.4,1018.5,1021.2,1020.9,1023.4,1015.6,1010.7,1019.9,1018.4,1011.3,1020.9,1017.2,1027.2,1010.7,1032.4,1020.5,1029.6,1027.2,1030.2,1032.4,1018.5,1014.8,1016.3,1018.8,1021.9,1024.1,1024.1,1022.6,1018.7,1019.7,1012.7,1018.6,1022.2,1022.6,1012.9,1012.9,1022.7,1007.3,1006.5,1012.4,1010.0,1022.7,1021.2,1016.2,1007.0,1012.9,1015.7,1008.5,1008.5,1021.2,1026.5,1015.5,1026.1,1021.0,1018.7,1023.1,1026.5,1013.9,1009.8,1022.8,1015.3,1013.9,1013.7,1022.8,1026.6,1011.9,1009.4,1013.5,1020.9,1020.3,1026.6,1008.4,1018.2,1012.6,1012.2,1017.0,1017.0,1018.2,1029.9,1021.0,1015.4,1009.2,1013.6,1015.1,1016.7,1029.9,1007.5,1021.1,1009.4,1007.8,997.3,1007.5,1006.7,1021.1,1007.0,1020.1,1012.0,1017.8,1016.3,1013.4,1021.2,1012.5,1003.4,1013.0,1007.9,1006.9,1021.2,1009.3,993.8,1010.0,1005.2,1029.3,1001.1,1007.1,1008.9,1010.2,1006.6,1005.2,1012.0,1029.3,1019.5,1015.2,1010.6,1005.0,999.3,1001.3,1010.5,998.1,1019.5,1009.7,1000.3,1007.0,1000.9,1007.9,1007.9,1008.4,1008.5,1009.7,1011.7,1003.9,1009.0,1003.5,1010.7,1008.1,1013.9,1016.4,1016.4,1014.6,1004.4,995.5,1011.4,1010.6,1010.6,1015.5,1013.5,1015.5,1027.6,1019.9,1010.3,1025.0,1014.1,1022.4,1030.0,1021.4,1025.4,1030.0,1024.9,1016.6,1024.2,1015.9,1017.5,1022.0,1015.9,1017.2,1023.0,1024.9,1012.1,1011.9,1020.7,1018.5,1014.9,1019.3,1019.0,1020.7,1022.0,1016.9,1018.1,1013.4,1019.7,1031.2,1015.1,1031.2,1010.3,1004.7,1012.3,1008.0,1022.6,1024.0,1020.0,1021.1,1013.3,1013.3,1017.8,1018.2,1015.7,1012.3,1016.3,1011.9,1012.3,1013.7,1024.0,1014.4,1011.4,1010.7,1015.6,1024.9,1022.5,1012.1,1012.8,1013.2,1013.4,1013.1,1017.0,1011.3,1009.3,1010.2,1007.2,1006.1,1015.3,1024.9,1025.0,1012.0,1015.5,1023.9,1014.7,1024.2,1028.4,1032.8,1032.8,1023.8,1018.5,1007.8,1021.6,1016.5,1016.0,1013.0,1017.2,1023.8,1014.9,1008.0,1011.1,999.1,1018.4,1004.0,1003.4,1010.3,1022.7,1010.0,1007.9,1022.7,1011.3,1010.0,999.9,1027.6,1016.9,1001.0,1010.7,1004.3,1010.3,1009.2,1007.8,1027.6,1013.3,1018.8,1015.8,1012.8,1015.2,1014.3,1014.3,1014.5,1011.6,1013.5,1009.8,1018.8,1019.1,1020.1,1021.3,1014.7,1017.4,1014.6,1011.2,1013.9,1009.0,1010.4,1005.3,1021.3,1014.3,1019.9,1010.6,1011.7,1013.8,1011.8,1010.3,1016.1,1019.9,1002.8,1006.3,1019.1,1011.9,1012.7,1022.2,1026.0,1013.7,1026.0],[5.58,5.61,5.6,5.65,5.62,5.62,5.62,5.62,5.59,5.68,5.67,5.71,5.61,5.65,5.63,5.65,5.73,5.7,5.71,5.72,5.67,5.67,5.7,5.73,5.7,5.69,5.66,5.67,5.66,5.69,5.72,5.68,5.74,5.72,5.68,5.62,5.69,5.68,5.63,5.73,5.68,5.68,5.66,5.68,5.63,5.61,5.6,5.57,5.65,5.6,5.63,5.66,5.65,5.64,5.62,5.56,5.65,5.62,5.58,5.59,5.67,5.61,5.65,5.63,5.53,5.61,5.6,5.66,5.7,5.69,5.69,5.67,5.68,5.69,5.66,5.67,5.67,5.67,5.62,5.59,5.6,5.62,5.66,5.63,5.63,5.64,5.63,5.6,5.62,5.6,5.67,5.62,5.65,5.62,5.61,5.61,5.6,5.62,5.62,5.65,5.63,5.59,5.67,5.68,5.67,5.65,5.65,5.65,5.6,5.57,5.64,5.59,5.59,5.63,5.6,5.61,5.61,5.64,5.67,5.66,5.68,5.63,5.66,5.67,5.63,5.66,5.66,5.66,5.63,5.62,5.63,5.61,5.66,5.65,5.64,5.68,5.64,5.71,5.67,5.66,5.66,5.64,5.72,5.69,5.68,5.68,5.68,5.61,5.6,5.62,5.6,5.59,5.61,5.61,5.59,5.59,5.56,5.58,5.58,5.57,5.59,5.62,5.61,5.61,5.58,5.58,5.62,5.61,5.57,5.58,5.58,5.57,5.59,5.63,5.62,5.64,5.64,5.61,5.62,5.64,5.63,5.6,5.6,5.61,5.63,5.6,5.59,5.64,5.61,5.72,5.7,5.71,5.7,5.67,5.7,5.7,5.69,5.68,5.67,5.68,5.68,5.67,5.68,5.73,5.72,5.71,5.71,5.7,5.69,5.71,5.67,5.68,5.7,5.71,5.71,5.69,5.7,5.76,5.68,5.69,5.75,5.7,5.71,5.67,5.65,5.65,5.67,5.62,5.65,5.65,5.68,5.64,5.68,5.67,5.64,5.64,5.66,5.67,5.66,5.66,5.65,5.62,5.61,5.64,5.67,5.72,5.64,5.63,5.64,5.68,5.67,5.67,5.67,5.67,5.62,5.61,5.75,5.64,5.63,5.71,5.66,5.65,5.62,5.65,5.63,5.66,5.61,5.64,5.65,5.64,5.62,5.63,5.68,5.69,5.65,5.64,5.65,5.66,5.65,5.66,5.59,5.58,5.59,5.59,5.63,5.6,5.57,5.59,5.59,5.66,5.64,5.59,5.62,5.67,5.62,5.61,5.63,5.63,5.57,5.58,5.6,5.61,5.62,5.63,5.6,5.61,5.6,5.68,5.62,5.68,5.66,5.65,5.68,5.66,5.61,5.65,5.7,5.7,5.71,5.7,5.71,5.71,5.68,5.7,5.72,5.72,5.7,5.71,5.67,5.71,5.69,5.7,5.68,5.66,5.65,5.65,5.68,5.66,5.65,5.66,5.66,5.66,5.68,5.65,5.63,5.62,5.66,5.66,5.65,5.65,5.65,5.65,5.67,5.66,5.65,5.64,5.65,5.63,5.64,5.66,5.66,5.67,5.66,5.65,5.65,5.65,5.65,5.63,5.61,5.63,5.61,5.61,5.64,5.64,5.66,5.64,5.62,5.63,5.7,5.7,5.7,5.7,5.69,5.68,5.67,5.69,5.71,5.71,5.72,5.71,5.7,5.69,5.68,5.7,5.74,5.72,5.71,5.66,5.65,5.64,5.65,5.65,5.64,5.63,5.63,5.63,5.61,5.62,5.66,5.76,5.72,5.69,5.69,5.64,5.58,5.61,5.61,5.6,5.61,5.61,5.61,5.62,5.6,5.64,5.63,5.64,5.62,5.64,5.65,5.65,5.65,5.66,5.65,5.63,5.66,5.65,5.66,5.66,5.65,5.64,5.64,5.63,5.6,5.64,5.63,5.64,5.63,5.64,5.6,5.61,5.61,5.61,5.6,5.62,5.65,5.67,5.66,5.66,5.65,5.65,5.63,5.66,5.62,5.65,5.6,5.59,5.66,5.63,5.6,5.59,5.6,5.6,5.59,5.61,5.67,5.66,5.63,5.64,5.65,5.64,5.65,5.64,5.63,5.65,5.66,5.65,5.66,5.65,5.62,5.59,5.59,5.6,5.59,5.63,5.6,5.56,5.61,5.6,5.57,5.55,5.6,5.59,5.64,5.57,5.69,5.62,5.65,5.62,5.61,5.64,5.61,5.64,5.62,5.61,5.61,5.58,5.62,5.59,5.62,5.59,5.63,5.6,5.63,5.61,5.58,5.62,5.63,5.62,5.6,5.61,5.59,5.62,5.58,5.61,5.59,5.56,5.59,5.62,5.58,5.59,5.65,5.6,5.62,5.59,5.66,5.55,5.56,5.63,5.64,5.59,5.61,5.62,5.65,5.63,5.67,5.61,5.67,5.67,5.64,5.62,5.65,5.64,5.7,5.66,5.69,5.68,5.66,5.67,5.67,5.67,5.66,5.66,5.67,5.7,5.64,5.63,5.62,5.62,5.58,5.63,5.63,5.62,5.62,5.63,5.63,5.61,5.63,5.59,5.59,5.59,5.62,5.67,5.61,5.63,5.61,5.63,5.62,5.61,5.61,5.6,5.63,5.62,5.6,5.59,5.6,5.61,5.59,5.61,5.66,5.66,5.64,5.65,5.66,5.67,5.65,5.65,5.64,5.65,5.65,5.64,5.66,5.69,5.67,5.66,5.67,5.66,5.66,5.63,5.62,5.63,5.61,5.6,5.62,5.62,5.6,5.62,5.59,5.6,5.58,5.58,5.59,5.59,5.72,5.7,5.73,5.71,5.71,5.7,5.71,5.71,5.74,5.73,5.76,5.74,5.73,5.75,5.72,5.74,5.68,5.68,5.66,5.69,5.65,5.68,5.67,5.69,5.71,5.66,5.65,5.64,5.64,5.67,5.72,5.67,5.67,5.66,5.66,5.67,5.68,5.64,5.63,5.64,5.65,5.69,5.71,5.66,5.65,5.64,5.66,5.65,5.64,5.61,5.64,5.64,5.62,5.63,5.6,5.6,5.61,5.62,5.75,5.69,5.67,5.68,5.66,5.69,5.71,5.71,5.66,5.62,5.64,5.67,5.69,5.68,5.69,5.68,5.68,5.67,5.68,5.67,5.7,5.68,5.65,5.68,5.68,5.68,5.74,5.7,5.71,5.67,5.69,5.7,5.7,5.76,5.73,5.76,5.73,5.68,5.69,5.69,5.68,5.71,5.68,5.66,5.69,5.68,5.68,5.65,5.68,5.67,5.66,5.65,5.7,5.66,5.7,5.66,5.66,5.67,5.71,5.71,5.7,5.68,5.67,5.69,5.69,5.72,5.71,5.68,5.66,5.65,5.67,5.68,5.57,5.56,5.54,5.56,5.58,5.6,5.61,5.59,5.62,5.54,5.62,5.62,5.61,5.58,5.62,5.69,5.66,5.61,5.61,5.65,5.61,5.64,5.66,5.61,5.65,5.61,5.65,5.62,5.66,5.63,5.65,5.64,5.65,5.66,5.65,5.67,5.68,5.68,5.67,5.64,5.64,5.64,5.62,5.64,5.66,5.64,5.62,5.62,5.66,5.6,5.61,5.63,5.63,5.62,5.63,5.6,5.58,5.63,5.62,5.6,5.58,5.61,5.71,5.68,5.71,5.71,5.7,5.69,5.7,5.65,5.61,5.68,5.66,5.63,5.64,5.65,5.7,5.66,5.65,5.67,5.65,5.67,5.67,5.61,5.63,5.62,5.64,5.64,5.62,5.63,5.74,5.69,5.65,5.65,5.66,5.66,5.66,5.67,5.63,5.67,5.61,5.61,5.58,5.62,5.63,5.62,5.63,5.66,5.63,5.65,5.64,5.64,5.65,5.64,5.62,5.62,5.61,5.6,5.63,5.58,5.56,5.59,5.59,5.67,5.58,5.6,5.59,5.6,5.58,5.54,5.6,5.59,5.67,5.64,5.62,5.61,5.58,5.59,5.58,5.57,5.61,5.62,5.58,5.59,5.57,5.59,5.57,5.56,5.57,5.58,5.61,5.59,5.6,5.6,5.61,5.62,5.64,5.64,5.61,5.63,5.58,5.54,5.58,5.6,5.6,5.63,5.62,5.6,5.64,5.65,5.62,5.66,5.64,5.67,5.67,5.66,5.68,5.65,5.69,5.64,5.65,5.65,5.66,5.68,5.65,5.63,5.67,5.66,5.61,5.64,5.66,5.63,5.63,5.64,5.62,5.63,5.7,5.67,5.69,5.67,5.68,5.73,5.65,5.68,5.59,5.56,5.59,5.59,5.63,5.65,5.63,5.63,5.62,5.62,5.61,5.61,5.61,5.6,5.61,5.61,5.62,5.6,5.61,5.62,5.59,5.62,5.63,5.66,5.64,5.62,5.62,5.63,5.63,5.63,5.65,5.62,5.61,5.62,5.61,5.6,5.62,5.62,5.63,5.61,5.62,5.63,5.62,5.61,5.62,5.65,5.62,5.65,5.62,5.61,5.62,5.61,5.61,5.6,5.61,5.62,5.62,5.57,5.58,5.55,5.6,5.56,5.55,5.58,5.61,5.59,5.58,5.58,5.57,5.58,5.55,5.64,5.6,5.55,5.6,5.58,5.6,5.6,5.58,5.59,5.65,5.65,5.65,5.65,5.65,5.65,5.64,5.64,5.64,5.64,5.63,5.65,5.68,5.64,5.67,5.64,5.65,5.64,5.63,5.63,5.61,5.62,5.6,5.64,5.65,5.67,5.64,5.64,5.62,5.64,5.61,5.64,5.64,5.64,5.63,5.66,5.64,5.64,5.67,5.65,5.64,5.65],[11.9,11.8,11.3,11.9,12.0,11.6,12.4,11.8,12.1,12.4,12.6,12.3,12.0,12.5,12.4,12.3,5.9,6.1,6.1,6.4,6.2,6.6,6.2,7.0,7.0,7.0,6.9,7.2,7.5,7.1,6.7,6.5,6.4,6.6,6.7,5.8,6.5,8.2,8.1,8.1,7.9,7.9,8.0,8.0,10.6,10.5,8.5,13.0,9.4,11.3,10.1,11.4,10.3,9.5,10.5,11.4,10.8,9.4,13.2,10.4,10.8,11.1,11.5,10.1,10.0,10.9,8.5,8.8,9.1,9.6,8.9,8.8,9.3,9.4,8.9,9.3,9.2,9.1,11.1,11.5,10.2,10.4,10.8,10.4,10.6,10.7,10.7,10.4,10.7,10.9,11.6,11.6,11.6,11.8,11.3,11.2,11.2,11.4,11.6,11.8,12.1,11.2,11.8,11.5,11.1,11.6,11.6,11.3,11.0,10.6,11.2,10.4,10.9,11.2,11.4,11.4,11.1,10.1,11.0,10.3,10.2,9.6,10.2,10.3,10.6,10.5,10.3,10.5,10.0,9.9,10.3,10.4,10.6,10.9,10.0,9.9,10.3,10.6,9.5,9.6,9.7,9.4,9.7,10.1,9.9,9.4,9.8,11.1,11.1,10.9,11.4,11.0,11.2,11.4,11.1,11.5,10.9,11.0,11.3,12.0,11.2,11.4,10.3,10.8,10.3,10.6,11.0,11.2,10.8,10.7,10.8,11.9,10.9,12.2,12.0,12.1,12.0,11.7,11.8,11.8,11.9,12.8,11.7,11.3,11.6,11.6,11.4,11.6,11.7,6.8,6.8,6.7,6.4,6.4,6.6,6.6,7.8,7.6,7.1,6.5,7.0,7.2,7.2,7.3,7.1,7.0,7.1,7.0,6.9,7.1,8.2,7.7,7.5,7.6,7.5,7.5,7.7,7.2,6.5,6.8,7.0,6.7,6.8,7.3,7.2,7.3,7.6,7.2,7.3,7.3,5.7,6.0,6.0,6.3,5.9,6.3,6.0,6.3,6.6,7.1,6.4,6.3,6.4,6.5,6.6,6.7,6.8,6.1,6.3,7.7,6.4,6.6,6.6,6.7,6.1,6.8,6.7,8.5,7.9,7.4,7.5,7.5,7.2,7.5,6.4,6.3,6.4,6.8,7.0,6.9,7.0,6.7,7.1,6.9,7.1,7.3,7.7,7.4,7.3,7.3,12.4,10.6,10.9,11.4,12.1,11.1,10.6,11.3,11.3,10.7,10.8,10.0,10.7,11.3,10.3,10.5,11.1,10.7,11.9,12.0,12.1,12.7,12.6,13.1,12.4,12.6,12.4,13.5,11.7,12.2,12.5,12.3,12.9,12.4,12.6,12.5,7.4,7.2,7.3,6.9,7.1,7.2,6.9,7.1,7.0,7.3,7.1,6.9,6.7,6.7,6.8,6.9,6.3,6.6,6.9,6.8,6.9,6.5,6.4,6.5,6.5,6.6,5.7,6.5,6.5,6.5,6.3,6.3,6.5,6.3,6.2,6.3,5.3,5.9,5.8,5.8,5.8,5.8,6.0,5.8,5.8,6.0,5.8,5.8,5.8,5.5,6.0,6.0,6.2,6.1,6.1,5.9,6.2,6.2,6.6,6.3,6.3,6.1,4.5,4.5,4.8,5.3,5.9,6.2,6.0,5.3,4.4,4.5,4.8,5.3,5.5,6.3,6.1,5.3,4.6,4.4,5.1,6.4,6.7,6.7,6.9,6.5,6.5,6.7,6.6,6.6,6.5,6.7,6.2,4.6,4.8,5.1,6.4,6.9,6.9,7.1,6.7,6.6,6.9,6.8,6.7,6.6,6.7,6.3,7.4,7.3,7.5,7.6,7.5,7.0,6.8,6.9,7.0,6.9,6.7,6.6,6.8,6.8,7.1,7.3,7.6,7.3,7.5,7.5,6.9,7.0,7.2,6.7,6.9,6.8,6.3,6.8,6.7,7.0,8.8,8.0,7.5,7.0,7.2,7.2,7.2,7.2,7.1,7.5,8.1,8.1,8.3,7.8,7.7,7.8,7.6,7.9,7.7,7.9,7.3,7.1,7.0,7.2,7.1,7.1,7.1,7.1,7.0,7.1,7.4,7.1,7.0,7.1,6.7,7.0,6.7,7.0,6.9,6.9,7.0,6.7,7.0,6.1,6.9,6.8,6.9,6.9,7.0,6.8,7.3,7.1,7.0,6.9,6.8,7.1,6.9,7.7,8.2,8.1,8.0,8.0,8.3,8.5,8.7,8.7,8.8,8.9,9.2,9.3,8.7,9.1,9.0,9.3,9.1,8.6,12.0,11.8,11.7,11.1,11.6,11.1,11.0,11.5,11.1,11.4,12.1,11.1,11.5,11.1,12.1,11.0,11.3,11.4,11.5,11.0,11.4,7.0,7.1,7.2,7.3,7.4,8.0,7.0,7.3,6.7,7.0,7.2,7.1,7.0,7.4,7.1,7.2,7.1,6.8,7.2,6.9,7.1,7.1,9.3,7.3,7.7,7.5,7.3,7.2,7.6,7.5,7.5,7.8,7.5,7.6,7.7,7.4,7.8,7.9,8.0,7.7,8.4,8.2,8.6,8.5,8.7,8.5,8.6,8.6,8.6,8.9,8.7,8.7,8.7,9.0,8.8,9.4,8.7,6.2,6.0,5.8,6.3,6.3,6.6,6.6,6.4,6.3,6.4,6.5,6.3,6.2,6.7,6.4,6.1,6.2,6.3,11.3,10.9,11.2,11.0,11.3,10.9,11.2,11.1,11.1,11.3,12.4,11.6,11.7,11.1,11.8,11.6,6.0,5.8,6.1,5.8,6.3,6.0,6.0,6.0,5.1,5.2,5.5,5.3,5.5,5.6,5.4,5.4,5.7,5.7,5.8,6.0,5.9,6.0,5.9,6.8,6.7,6.7,6.7,6.7,6.8,6.7,8.3,8.1,7.8,8.0,7.9,7.6,7.9,7.7,7.6,7.5,7.9,7.8,8.1,7.8,7.5,7.4,7.4,7.4,6.9,7.3,7.3,7.4,7.6,7.9,7.8,8.1,7.9,7.8,6.5,6.2,6.1,6.2,5.9,6.2,6.6,6.5,6.5,6.4,7.7,6.7,5.7,5.7,5.5,5.5,5.7,5.3,5.6,6.0,5.8,6.0,6.1,6.4,6.3,6.1,6.6,6.0,6.8,7.2,7.3,7.4,6.9,6.7,6.2,6.7,6.2,6.7,7.0,7.2,7.1,6.8,7.4,7.0,7.0,6.8,7.4,6.8,7.2,7.1,7.0,7.1,6.9,7.0,7.4,7.2,7.3,7.1,6.1,6.5,6.3,6.2,6.0,6.3,6.2,6.2,6.4,6.2,6.2,5.9,6.0,6.1,8.3,8.5,8.6,8.9,8.5,8.8,8.7,9.2,8.6,8.7,8.9,8.3,8.1,8.2,9.2,7.6,7.5,7.7,7.7,7.7,7.7,7.5,7.8,8.7,8.9,8.7,9.1,8.7,9.2,9.4,9.9,8.4,8.9,7.5,7.2,7.0,7.3,6.9,7.5,9.3,8.5,8.3,7.7,7.9,8.1,8.3,6.7,7.0,6.7,6.4,6.5,7.0,6.2,6.6,6.5,6.8,6.6,6.2,6.3,6.1,6.4,6.4,5.3,5.4,5.3,5.2,5.0,4.8,5.2,5.9,5.8,5.9,5.6,5.6,5.4,5.7,6.5,6.7,6.7,6.7,6.9,7.0,6.8,7.4,7.3,7.3,6.8,7.3,7.6,7.3,5.9,6.0,6.0,5.8,5.8,5.8,5.7,5.9,5.9,6.1,6.3,6.1,5.8,5.8,5.9,6.0,11.4,11.7,11.4,11.7,11.5,11.2,11.3,11.8,10.8,11.1,11.0,11.1,11.3,12.1,11.2,11.9,11.9,12.8,11.6,11.9,11.3,11.8,11.3,11.1,11.8,11.7,12.2,12.1,12.3,11.9,12.2,13.1,12.6,12.9,12.4,12.3,12.3,12.3,12.6,13.0,12.8,12.9,12.7,12.6,14.2,13.1,13.4,13.1,13.3,13.2,12.7,13.0,13.3,14.2,13.2,12.8,13.0,13.3,13.2,13.0,12.8,13.2,9.1,6.4,6.1,6.3,6.2,6.3,6.2,6.3,6.4,6.6,7.8,6.2,6.1,6.1,6.1,6.3,6.1,5.9,6.2,6.3,10.0,8.5,8.1,8.0,8.5,8.0,8.0,8.4,9.7,8.5,8.1,7.8,8.3,8.0,8.4,8.4,7.4,7.2,7.5,7.3,7.7,7.8,7.5,7.6,7.4,7.7,7.6,7.4,7.5,7.3,7.6,7.3,7.6,7.3,7.5,8.1,8.1,7.4,7.6,7.8,7.6,7.6,7.9,7.6,7.7,7.9,8.0,7.6,7.7,7.6,7.7,7.3,7.4,7.7,6.5,6.5,6.6,6.1,6.0,6.0,6.1,6.2,6.2,6.6,6.8,6.7,6.5,6.4,6.3,6.2,6.5,6.5,9.9,9.2,9.4,9.3,9.6,9.5,9.1,10.7,10.0,9.7,9.4,9.6,10.0,9.8,9.9,11.1,10.0,10.0,10.3,10.0,10.4,10.2,10.1,10.2,5.3,5.7,5.4,5.4,5.3,5.4,5.7,5.5,5.8,5.7,6.0,5.5,5.4,5.3,5.4,5.3,5.4,5.4,5.5,5.6,5.6,5.7,5.9,5.5,5.8,5.8,5.9,5.7,5.7,5.7,5.7,5.6,5.7,5.6,5.5,5.7,5.7,5.8,5.9,5.6,5.7,5.7],[21.01,21.01,21.01,21.02,21.01,21.01,21.01,21.01,21.08,21.08,21.08,21.07,21.07,21.07,21.07,21.07,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.1,21.1,21.12,21.12,21.12,21.12,21.11,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.09,21.07,21.07,21.07,21.07,21.08,21.08,21.12,21.11,21.12,21.11,21.12,21.12,21.12,21.11,21.11,21.12,21.11,21.1,21.11,21.1,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.12,21.12,21.12,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.11,21.01,21.01,21.01,21.01,21.01,21.01,21.01,21.01,21.01,21.07,21.07,21.07,21.06,21.07,21.07,21.07,21.07,21.07,21.01,21.0,21.0,21.01,21.0,21.0,21.01,21.0,21.01,21.0,21.08,21.08,21.08,21.09,21.08,21.08,21.08,21.08,21.08,21.08,21.0,21.0,21.0,21.0,21.0,21.0,21.0,21.0,21.0,21.0,21.08,21.08,21.08,21.09,21.08,21.08,21.08,21.08,21.09,21.08,21.1,21.1,21.1,21.09,21.1,21.1,21.1,21.1,21.09,21.1,21.1,21.1,21.09,21.1,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.09,21.1,21.09,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.12,21.13,21.13,21.13,21.13,21.13,21.13,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.14,21.13,21.14,21.14,21.14,21.14,21.14,21.13,21.13,21.13,21.13,21.13,21.13,21.13,21.11,21.11,21.09,21.09,21.1,21.1,20.99,20.98,20.98,20.98,20.98,20.98,20.98,21.11,21.11,21.11,21.11,21.1,21.1,21.11,20.99,20.99,20.98,20.98,20.98,20.99,20.99,21.11,21.1,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.11,20.99,20.99,20.98,20.99,20.99,20.99,20.99,20.99,20.99,20.99,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.09,21.1,21.1,21.1,21.1,21.1,21.11,21.1,21.1,21.1,21.09,21.1,21.1,21.09,21.1,21.1,21.09,21.09,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.1,21.01,21.01,21.01,21.01,21.01,21.01,21.01,21.01,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.02,21.01,21.01,21.01,21.01,21.01,21.01,21.02,21.02,21.01,21.1,21.1,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.1,21.11,21.11,21.1,21.11,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.12,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.11,21.1,21.1,21.1,21.1,21.1,21.09,21.1,21.1,21.1,21.11,21.1,21.1,21.09,21.1,21.09,21.1,21.1,21.09,21.09,21.1,21.1,21.11,21.1,21.11,21.12,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.09,21.09,21.09,21.09,21.09,21.08,21.08,21.08,21.08,21.08,21.08,21.08,21.08,21.07,21.08,21.08,21.07,21.07,21.07,21.08,21.08,21.07,21.08,21.1,21.1,21.1,21.1,21.09,21.1,21.1,21.1,21.09,21.09,21.09,21.1,21.1,21.09,21.09,21.09,21.09,21.09,21.09,21.08,21.08,21.08,21.08,21.08,21.08,21.08,21.09,21.08,21.08,21.08,21.08,21.08,21.08,21.08,21.07,21.08,21.08,21.08,21.07,21.08,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.02,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.03,21.04,21.05,21.04,21.04,21.08,21.08,21.08,21.08,21.07,21.08,21.08,21.07,21.08,21.07,21.08,21.08,21.08,21.07,21.07,21.08,21.08,21.09,21.1,21.09,21.09,21.1,21.09,21.1,21.09,21.09,21.1,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.11,21.12,21.11,21.11,21.11,21.11,21.11,21.11,21.08,21.08,21.08,21.07,21.07,21.08,21.07,21.08,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.13,21.13,21.13,21.13,21.13,21.12,21.12,21.13,21.11,21.11,21.11,21.1,21.1,21.11,21.11,20.98,20.98,20.98,20.98,20.98,20.98,20.98,21.11,21.11,21.11,21.11,21.11,21.11,21.11,20.98,20.99,20.98,20.98,20.98,20.98,20.98,21.1,21.1,21.1,21.1,21.1,21.1,21.1,20.98,20.97,20.97,20.98,20.98,20.97,20.97,21.11,21.11,21.11,21.11,21.11,21.11,20.98,20.98,20.98,20.98,20.98,20.98,21.11,21.12,21.11,21.12,21.12,21.12,21.12,20.98,20.98,20.98,20.99,20.98,20.98,20.98,21.02,21.02,21.02,21.02,21.02,21.02,21.02,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.01,21.01,21.01,21.01,21.01,21.01,21.01,21.01,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.01,21.01,21.01,21.01,21.01,21.02,21.01,21.09,21.09,21.09,21.09,21.09,21.09,21.09,21.06,21.06,21.06,21.06,21.06,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.06,21.07,21.04,21.03,21.04,21.04,21.03,21.03,21.03,21.03,21.03,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.04,21.11,21.12,21.12,21.12,21.12,21.12,21.12,21.1,21.11,21.12,21.11,21.11,21.11,21.11,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.11,21.11,21.11,21.11,21.1,21.11,21.11,21.11,21.12,21.12,21.12,21.12,21.12,21.12,21.11,21.11,21.12,21.12,21.12,21.11,21.12,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.11,21.1,21.1,21.1,21.11,21.1,21.1,21.1,21.1,21.11,21.1,21.1,21.1,21.11,21.1,21.1,21.11,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.11,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.07,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.09,21.1,21.1,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.12,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.11,21.1,21.11,21.11,21.07,21.07,21.07,21.07,21.07,21.07,21.06,21.06,21.06,21.06,21.06,21.07,21.07,21.07,21.07,21.07,21.07,21.06,21.06,21.06,21.07,21.07,21.07,21.07,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.11,21.1,21.1,21.1,21.1,21.1,21.1,21.1,21.1]]};const FOLDS={"rows":"241041113102044233234420213421004144333042220334303033010200124041002201122201024110140402241214014200331210201340232213143332234342224201402033213323333231030434322142024322032102321302342433023313004432144300012121440301214331234044212011444003301112431302411133201424022020402311432113401203140310232331011012131424003130232001410002142423040314331003012140210231202211343240440122444411144202241334330043204020332243132101211112002013300413202100203124200444130041233442403111321240123402411240422043141244432003032042004101011012112300412021420132141441221244442103030441241321021131212241000020400200343332411211240113432411214202133434400444422323421133203431010314324040213414334312441221014400401311243013000314220224042412341330400342420443031011022010141040443040344334200030012234224414301003444233231034224310223143240422233144430010133230133144014024111013443001334131213342323422334434132213013001023012313034303234121231020030420433331000441402400231222301321431230214424342243324441330143414301201314014240114422032233312410421412331022113101211202101030144333202333344240340411432","lots":{"30":0,"46":0,"18":0,"41":0,"8":0,"59":0,"25":0,"26":0,"55":0,"52":0,"31":0,"2":0,"27":1,"47":1,"50":1,"19":1,"20":1,"21":1,"36":1,"37":1,"10":1,"57":1,"4":1,"5":1,"32":2,"17":2,"9":2,"11":2,"48":2,"54":2,"39":2,"24":2,"44":2,"56":2,"15":2,"35":2,"33":3,"7":3,"3":3,"23":3,"43":3,"45":3,"16":3,"12":3,"14":3,"51":3,"53":3,"1":3,"28":4,"29":4,"49":4,"38":4,"42":4,"58":4,"60":4,"40":4,"6":4,"22":4,"13":4,"34":4}};</script>
+<script>
+/* NSGA-II port of the repository's run_nsga2_search (DEAP eaMuPlusLambda + selNSGA2).
+   An individual is the index of one historical production profile. */
+(function (root) {
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function prepare(raw) {
+    const n = raw.fr.length, m = raw.X.length;
+    const Z = new Float64Array(n * m), mean = [], std = [];
+    for (let j = 0; j < m; j++) {
+      let s = 0; for (let i = 0; i < n; i++) s += raw.X[j][i];
+      const mu = s / n; let v = 0;
+      for (let i = 0; i < n; i++) v += (raw.X[j][i] - mu) ** 2;
+      const sd = Math.sqrt(v / n) || 1; mean.push(mu); std.push(sd);
+      for (let i = 0; i < n; i++) Z[i * m + j] = (raw.X[j][i] - mu) / sd;
+    }
+    const D = { n, m, Z, mean, std, fr: raw.fr, cp: raw.X[1], lot: raw.lot, X: raw.X };
+    D.front = paretoIdx(D, null);
+    return D;
+  }
+  function dominates(D, a, b) {
+    return D.fr[a] <= D.fr[b] && D.cp[a] <= D.cp[b] && (D.fr[a] < D.fr[b] || D.cp[a] < D.cp[b]);
+  }
+  /* exact nondominated set, one index per distinct objective pair, sorted by friability */
+  function paretoIdx(D, idxs) {
+    const ids = idxs ? Array.from(new Set(idxs)) : Array.from({ length: D.n }, (_, i) => i);
+    ids.sort((a, b) => D.fr[a] - D.fr[b] || D.cp[a] - D.cp[b] || a - b);
+    const out = []; let best = Infinity, lastF = null;
+    for (const i of ids) {
+      if (D.cp[i] < best) { out.push(i); best = D.cp[i]; lastF = D.fr[i]; }
+    }
+    return out;
+  }
+  function nearest(D, p) {
+    const { n, m, Z } = D; let bi = 0, bd = Infinity;
+    for (let i = 0; i < n; i++) {
+      let d = 0; const o = i * m;
+      for (let j = 0; j < m; j++) { const e = Z[o + j] - p[j]; d += e * e; }
+      if (d < bd) { bd = d; bi = i; }
+    }
+    return bi;
+  }
+  function profile(D, i) { return Array.from(D.Z.subarray(i * D.m, i * D.m + D.m)); }
+  function blendChild(D, a, b, blend) {
+    const pa = profile(D, a), pb = profile(D, b);
+    return pa.map((v, j) => blend * v + (1 - blend) * pb[j]);
+  }
+  function stepChild(D, a, target, step) {
+    const pa = profile(D, a), pt = profile(D, target);
+    return pa.map((v, j) => v + step * (pt[j] - v));
+  }
+  /* fast nondominated sort + crowding distance, truncated to k survivors */
+  function selNSGA2(D, pool, k) {
+    const n = pool.length, S = Array.from({ length: n }, () => []), cnt = new Int32Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      if (dominates(D, pool[i].idx, pool[j].idx)) { S[i].push(j); cnt[j]++; }
+      else if (dominates(D, pool[j].idx, pool[i].idx)) { S[j].push(i); cnt[i]++; }
+    }
+    let cur = []; for (let i = 0; i < n; i++) if (!cnt[i]) cur.push(i);
+    const fronts = []; let taken = 0, rank = 0;
+    while (cur.length && taken < k) {
+      fronts.push(cur); taken += cur.length; const nxt = [];
+      for (const i of cur) { pool[i].rank = rank; for (const j of S[i]) if (--cnt[j] === 0) nxt.push(j); }
+      cur = nxt; rank++;
+    }
+    for (const f of fronts) crowding(D, pool, f);
+    const chosen = [];
+    for (let r = 0; r < fronts.length - 1; r++) for (const i of fronts[r]) chosen.push(pool[i]);
+    const last = fronts[fronts.length - 1].slice().sort((a, b) => pool[b].crowd - pool[a].crowd);
+    for (let q = 0; chosen.length < k && q < last.length; q++) chosen.push(pool[last[q]]);
+    return chosen;
+  }
+  function crowding(D, pool, f) {
+    for (const i of f) pool[i].crowd = 0;
+    for (const key of ['fr', 'cp']) {
+      const s = f.slice().sort((a, b) => D[key][pool[a].idx] - D[key][pool[b].idx]);
+      const lo = D[key][pool[s[0]].idx], hi = D[key][pool[s[s.length - 1]].idx];
+      pool[s[0]].crowd = Infinity; pool[s[s.length - 1]].crowd = Infinity;
+      if (hi === lo) continue;
+      for (let q = 1; q < s.length - 1; q++)
+        pool[s[q]].crowd += (D[key][pool[s[q + 1]].idx] - D[key][pool[s[q - 1]].idx]) / (2 * (hi - lo));
+    }
+  }
+  function coverage(D, idxs) {
+    const have = new Set(idxs.map(i => D.fr[i] + '|' + D.cp[i])); let c = 0;
+    for (const i of D.front) if (have.has(D.fr[i] + '|' + D.cp[i])) c++;
+    return c / D.front.length;
+  }
+  /* One evolutionary run that can be advanced a generation at a time. */
+  function createRun(D, opt) {
+    const o = Object.assign({ mu: 120, lambda: 240, cxpb: 0.55, mutpb: 0.40, reset: 0.65, seed: 42 }, opt);
+    const rnd = mulberry32(o.seed), ri = () => Math.floor(rnd() * D.n);
+    const seen = new Uint8Array(D.n);
+    const run = { opt: o, gen: 0, evals: 0, unique: 0, archive: [], pop: [], history: [], events: [], ops: null };
+    function evaluate(ind) { run.evals++; if (!seen[ind.idx]) { seen[ind.idx] = 1; run.unique++; } }
+    function record() {
+      run.history.push({ gen: run.gen, evals: run.evals, unique: run.unique,
+        cov: coverage(D, run.archive), front: run.archive.slice(),
+        ops: run.ops, pop: run.pop.map(p => ({ id: p.id, idx: p.idx, from: p.from, rank: p.rank || 0 })) });
+    }
+    for (let i = 0; i < o.mu; i++) { const ind = { idx: ri(), id: i, from: null }; evaluate(ind); run.pop.push(ind); }
+    selNSGA2(D, run.pop, o.mu);
+    run.archive = paretoIdx(D, run.pop.map(p => p.idx)); record();
+    let nextId = o.mu;
+    run.step = function () {
+      const pop = run.pop, off = [], ev = [];
+      for (let q = 0; q < o.lambda; q++) {
+        const r = rnd();
+        if (r < o.cxpb) {
+          let a = Math.floor(rnd() * pop.length), b = Math.floor(rnd() * (pop.length - 1)); if (b >= a) b++;
+          const blend = rnd(), idx = nearest(D, blendChild(D, pop[a].idx, pop[b].idx, blend));
+          const c = { idx, id: nextId++, from: pop[a].idx, op: 'x' }; evaluate(c); off.push(c);
+          ev.push({ op: 'x', a: pop[a].idx, b: pop[b].idx, blend, child: idx });
+        } else if (r < o.cxpb + o.mutpb) {
+          const p = pop[Math.floor(rnd() * pop.length)]; let idx, e;
+          if (rnd() < o.reset) { idx = ri(); e = { op: 'r', a: p.idx, child: idx }; }
+          else { const t = ri(), st = 0.15 + rnd() * 0.70; idx = nearest(D, stepChild(D, p.idx, t, st)); e = { op: 'm', a: p.idx, target: t, step: st, child: idx }; }
+          const c = { idx, id: nextId++, from: p.idx, op: e.op }; evaluate(c); off.push(c); ev.push(e);
+        } else { const p = pop[Math.floor(rnd() * pop.length)]; off.push({ idx: p.idx, id: nextId++, from: p.idx, op: 'c' }); }
+      }
+      run.events = ev;
+      run.ops = { x: 0, r: 0, m: 0, c: 0 }; for (const c of off) run.ops[c.op]++;
+      run.archive = paretoIdx(D, run.archive.concat(off.map(c => c.idx)));
+      run.pop = selNSGA2(D, pop.concat(off), o.mu);
+      run.gen++; record();
+      return run;
+    };
+    return run;
+  }
+  const api = { mulberry32, prepare, dominates, paretoIdx, nearest, profile, blendChild, stepChild, selNSGA2, coverage, createRun };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.GA = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+/* English copy for every [data-i18n] node; Spanish lives in the markup. */
+const EN = {
+  'nav.problem': 'Problem', 'nav.evo': 'Evolution', 'nav.lab': 'Lab', 'nav.why': 'Why', 'nav.res': 'Results', 'nav.val': 'Validation',
+  'hero.h1': 'Out of 1,098 tableting records, evolution kept five.',
+  'hero.lede': 'A pharmaceutical manufacturer was producing tablets that were too friable. This project uses a multi-objective genetic algorithm, <b>NSGA-II</b>, to find the production records that reach low friability without asking the tablet press for more compression force than necessary, and checks the result against an exact enumeration.',
+  'hero.cta1': 'Open the lab', 'hero.cta2': 'View the repository', 'hero.replay': 'Replay the evolution',
+  'lg.rec': 'production record', 'lg.ind': 'individual in the population', 'lg.arch': 'Pareto front found so far',
+  'lg.low': 'On both axes, less is better: the place to be is the lower left.',
+  'lg.exact': 'exact front, by enumeration', 'lg.arch2': 'genetic algorithm archive',
+  'pb.h2': 'Two objectives that refuse to be minimized together',
+  'pb.p1': '<b>Friability</b> measures how much mass a tablet loses when it is knocked and rubbed: a sample is weighed, tumbled in a drum and weighed again. A tablet that crumbles means material loss and rework, and lot-to-lot variation makes demand planning less reliable. Across the 60 lots in this project it ranges from 0.25% to 0.75%.',
+  'pb.p2': '<b>Compression force</b> is what the punches apply to the granulate. Pressing harder than needed fatigues the punches and can fracture their tips, so solving friability by brute force is expensive.',
+  'pb.p3': 'Ask for both at once and there is no longer a single winning recipe. There is a set of trade-offs where one objective cannot improve without the other getting worse: the <b>Pareto front</b>.',
+  'rig.press.h': 'Compression', 'rig.press.p': 'The upper punch comes down and compacts the granulate inside the die. The force is logged in kilonewtons.',
+  'rig.drum.h': 'Friability', 'rig.drum.p': 'The pharmacopoeial test turns the drum 100 times at 25 rpm; the percentage of mass lost is the friability. This drum turns at that speed.',
+  'dom.h3': 'Explore dominance',
+  'dom.p': 'Each dot is a real production record. Pick one. It is dominated by the records that are no worse on either objective and better on at least one: they sit below it, to its left, or both. A record no other record dominates belongs to the Pareto front. On a keyboard, the arrow keys step through the records.',
+  'dom.rand': 'Another random record', 'dom.front': 'Show the front',
+  'dom.k1': 'dominate it', 'dom.k2': 'dominated by it', 'dom.k3': 'neither',
+  'ev.h2': 'How do you breed a better tablet?',
+  'ev.p1': 'In this algorithm an individual is the index of a historical production record: one row of the log with eight measurements. Crossover and mutation work on those eight variables, standardized. Its fitness is two numbers we want small, friability and compression force.',
+  'ev.p2': 'Searching only among what the plant has already made is a design decision: no solution proposes a recipe that was never run.',
+  'st.1h': 'Initial population', 'st.1p': '120 records picked at random.',
+  'st.2h': 'Variation', 'st.2p': '240 offspring per generation: 55% come from crossover, 40% from mutation and 5% are copies.',
+  'st.3h': 'Evaluation', 'st.3p': 'Each new child gets its two objectives.',
+  'st.4h': 'NSGA-II selection', 'st.4p': 'Parents and offspring compete together and 120 survive.',
+  'st.5h': 'Pareto archive', 'st.5p': 'Nondominated individuals from any generation are kept. After 60 generations the run repeats with another seed.',
+  'bn.h3': 'Crossover and mutation bench', 'bn.tabx': 'Crossover', 'bn.tabm': 'Mutation',
+  'bn.gene': 'Variable', 'bn.scale': 'low to high across the history', 'bn.child': 'Child',
+  'bn.alpha': 'Weight of A in the blend (α)', 'bn.newa': 'Change A', 'bn.newb': 'Change B',
+  'bn.kmix': 'blend, which does not exist in the log', 'bn.kchild': 'child: the closest real record',
+  'bn.code': 'See the operators in the notebook',
+  'sl.h3': 'Who survives',
+  'sl.p1': 'NSGA-II does not rank by a score. It ranks by fronts: first the individuals nobody dominates, then those dominated only by that first group, and so on.',
+  'sl.p2': 'When a front does not fit entirely, its most isolated individuals go in first, those with the largest crowding distance. That keeps variety along the front.',
+  'sl.k': 'Places available', 'sl.new': 'Another sample of 14',
+  'lab.h2': 'NSGA-II lab',
+  'lab.p1': 'The notebook’s algorithm, ported to JavaScript and running in your browser on the 1,098 real records. It uses a different random number generator, so a seed here does not reproduce the Python run. Change the parameters and watch how many generations it takes to complete the front.',
+  'lab.mu': 'Population (μ)', 'lab.la': 'Offspring per generation (λ)', 'lab.g': 'Generations', 'lab.cx': 'Crossover probability', 'lab.mt': 'Mutation probability',
+  'lab.rs': 'Mutations that jump at random', 'lab.seed': 'Seed', 'lab.reseed': 'Another seed', 'lab.reset': 'Project values', 'lab.scrub': 'Generation',
+  'lab.s1': 'points of the exact front found so far', 'lab.s2': 'fitness evaluations', 'lab.s3': 'distinct records visited', 'lab.s4': 'generation where the front was completed',
+  'lab.c1': 'Front points found, by generation', 'lab.c2': 'Distinct records visited, by generation',
+  'why.h2': 'Why a multi-objective genetic algorithm',
+  'why.p1': 'A bio-inspired algorithm needs no derivatives and no physical model of the tablet press. It only has to measure, or predict, how good a recipe is. And because it compares by dominance, it delivers a set of trade-offs instead of a single answer.',
+  'ws.h3': 'A weighted sum cannot see the whole front',
+  'ws.p': 'The easy way out is to melt both objectives into one number with weights. Move the weight: the minimum jumps between three points and never lands on the other two, because they sit in a concave stretch of the front.',
+  'ws.w': 'Weight on friability',
+  'sc.h3': 'Enumeration stops being an option very quickly',
+  'sc.p': 'Today the search space is 1,098 records. The project’s next step is to optimize continuous machine setpoints on a surrogate model. A full grid has levels<sup>variables</sup> combinations.',
+  'sc.d': 'Variables to tune', 'sc.l': 'Levels per variable', 'sc.m1': '1,098 records', 'sc.m2': '41,403 algorithm evaluations',
+  'sc.note': 'A genetic algorithm’s budget is yours to set: offspring per generation times the number of generations. It does not grow with the size of the search space.',
+  'rs.h2': 'The five trade-offs no other record beats',
+  'rs.p1': 'Among 1,098 records from 60 lots, only five are nondominated. The genetic algorithm recovered all of them across three fixed seeds, and exact enumeration confirms none is missing.',
+  'rs.f1': 'points of the exact front recovered by NSGA-II (100% coverage)', 'rs.f2': 'fitness evaluations across seeds 7, 19 and 42',
+  'rs.n3': '0.25%', 'rs.n4': '−21.5%',
+  'rs.f3': 'the lowest friability observed, reached at 24.55 kN', 'rs.f4': 'force versus the historical median (31.26 kN)',
+  'rs.s1h': 'First version',
+  'rs.s1p': 'The first genetic algorithm kept its best individuals in a sorted hall of fame, a structure meant for a single objective. It returned twenty records at 0.25% friability and the one with the least force needed <b>25.76 kN</b>.',
+  'rs.s2h': 'Validated version',
+  'rs.s2p': 'With a Pareto archive and verification by enumeration all five trade-offs appear, and the same minimum friability is reached at <b>24.55 kN</b>: 4.7% less force.',
+  'rs.note': 'The recommended record is a candidate for a controlled confirmation batch. It is not yet a production recipe, and the evidence is observational.',
+  'vl.h2': 'What anticipates friability, measured without cheating',
+  'vl.p1': 'An Extra Trees model answers another question in the project: which measurements anticipate friability. There is a trap. Friability is measured once per lot and repeated on every row of that lot, so with a random row split the model sees, during training, the siblings of the rows it is later tested on.',
+  'lk.h3': 'How each fold is split', 'lk.rows': 'By rows', 'lk.lots': 'By lot', 'lk.fold': 'Test fold',
+  'lk.r2a': 'R² grouped by lot', 'lk.r2b': 'R² with random rows',
+  'lk.note': 'The 0.85 is information leakage. The number that holds for lots never seen is 0.44, and that is the one the project reports.',
+  'im.h3': 'Which measurements anticipate friability',
+  'im.p': 'Permutation importance on held-out lots: how much R² drops when each variable is shuffled. The line marks ± one standard deviation across the five folds.',
+  'im.note': 'Compression, hardness and minimum weight carry most of the signal. This is predictive power, not causation.',
+  'cv.h2': 'Warnings and precautions',
+  'cv.1': 'The data are observational. A variable’s importance does not establish that it causes friability.',
+  'cv.2': 'Friability is a lot-level measurement repeated on every process record of that lot.',
+  'cv.3': 'Two compression readings fall below the lower outlier fence (Q1 − 1.5 × IQR = 8.16 kN). The 0.62 kN point stays on the front for mathematical rigor, but it may be a sensor or transcription error.',
+  'cv.4': 'The optimizer ranks historical records. It does not yet generate validated continuous setpoints for the machine.',
+  'cv.5': 'Next step: train a constrained surrogate model on additional experiments and optimize continuous setpoints with an uncertainty penalty.',
+  'th.h3': 'Scientific foundation',
+  'th.p1': 'The pharmaceutical interpretation rests on the experimental work of <b>Julieta Villar Alvez</b>, <i>Factores que afectan a la compresión de comprimidos</i> (Universidad de Sevilla, 2017), which explains how compression pressure, hardness, friability, humidity, formulation and compression time interact.',
+  'th.p3': 'That work also reports a result from Tanino and colleagues (1995): compressing at low pressure for a longer time removes trapped air better than compressing at high pressure. It points the same way as this analysis, toward good quality with little force.',
+  'th.p2': 'The 24.55 kN figure comes from this project’s data and analysis, not from that study.',
+  'th.link': 'Official record in idUS',
+  'ft.1': 'A project by Arielo00. Python, DEAP, scikit-learn and pandas; this page runs a JavaScript version of the same algorithm.',
+  'ft.2': 'Code and notebook on GitHub',
+  'aria.0': 'Sections', 'aria.1': 'Genetic algorithm population moving toward the Pareto front, generation by generation', 'aria.2': 'Upper punch compressing the granulate inside the die', 'aria.3': 'Friability drum turning with tablets inside', 'aria.4': 'Scatter of friability against compression force for the 1,098 records. Arrow keys step through the records.', 'aria.5': 'Operator', 'aria.6': 'Position of the parents and the child in objective space', 'aria.7': 'Fourteen records sorted into nondominated fronts', 'aria.8': 'Genetic algorithm population in objective space', 'aria.9': 'Front points found per generation', 'aria.10': 'Distinct records visited per generation', 'aria.11': 'Pareto front and the cost line of the weighted sum', 'aria.12': 'Split type', 'aria.13': 'Sixty lots as columns of records; the test rows of the fold are coloured', 'aria.14': 'Fold'
+};
+
+/* Strings assembled in script. {name} placeholders are filled by T(). */
+const STR = {
+  es: {
+    'ax.x': 'fuerza de compresión (kN)', 'ax.y': 'friabilidad (%)',
+    'hero.status': 'Generación {g}: <b>{k} de 5</b> puntos del frente encontrados',
+    'vars': ['Precompresión', 'Compresión', 'Peso medio', 'Peso mínimo', 'Peso máximo', 'Espesor', 'Dureza', 'Diámetro'],
+    'row': 'Fila', 'lot': 'lote', 'Lot': 'Lote',
+    'dom.read': '<b>Fila {row}, lote {lot}.</b> {fr} % de friabilidad con {cp} kN. Lo dominan <b>{n1}</b> registros y este domina a <b>{n2}</b>.',
+    'dom.readfront': '<b>Fila {row}, lote {lot}.</b> {fr} % de friabilidad con {cp} kN. Ningún registro lo domina: está en el frente de Pareto. Domina a <b>{n2}</b> registros.',
+    'dom.hide': 'Ocultar el frente', 'dom.show': 'Mostrar el frente',
+    'bn.descx': 'La cruza mezcla dos registros gen por gen con un peso α. Esa mezcla casi nunca existe en la bitácora, así que el operador la sustituye por el registro real más parecido, medido con distancia euclidiana sobre las ocho variables estandarizadas.',
+    'bn.descm': 'Con probabilidad 0.65 el individuo salta a un registro cualquiera, y eso mantiene la exploración. El resto de las veces avanza entre 15 % y 85 % del camino hacia otro registro elegido al azar y aterriza en el real más cercano.',
+    'bn.gox': 'α al azar', 'bn.gom': 'Mutar', 'bn.target': 'Destino', 'bn.b': 'B',
+    'bn.vx': 'Hijo: <b>fila {row}, lote {lot}</b>, {fr} % con {cp} kN. {rel}',
+    'bn.vr': 'Salió salto al azar (probabilidad 0.65). El individuo pasa a la <b>fila {row}, lote {lot}</b>: {fr} % con {cp} kN. {rel}',
+    'bn.vm': 'Salió un paso de {step} % hacia la fila {t}. Aterriza en la <b>fila {row}, lote {lot}</b>: {fr} % con {cp} kN. {rel}',
+    'rel.same': 'Es el mismo registro que A.', 'rel.sameb': 'Es el mismo registro que B.',
+    'rel.domA': 'Domina a A: mejora los dos objetivos a la vez.', 'rel.domBoth': 'Domina a los dos padres.',
+    'rel.domB': 'Domina a B, pero no a A.', 'rel.domd': 'A lo domina: este hijo no sobreviviría frente a su padre.',
+    'rel.domdAny': 'Uno de sus padres lo domina.', 'rel.none': 'Ni domina ni es dominado por A: es un compromiso distinto.',
+    'rel.none2': 'No domina a sus padres ni ellos a él: es un compromiso distinto.',
+    'sl.read1': 'Sobreviven {k} de 14: {full}.', 'sl.full': 'los frentes 1 a {r} completos', 'sl.full1': 'el frente 1 completo', 'sl.full2': 'los frentes 1 y 2 completos', 'sl.none': 'ningún frente completo',
+    'sl.part': ' El frente {r} queda partido ({a} de {b}): pasan primero los más aislados.', 'sl.exact': ' Ningún frente quedó partido.',
+    'lab.play': 'Evolucionar', 'lab.pause': 'Pausa', 'lab.gen': '{g} / {G}',
+    'lab.never': 'sin completar en {G}', 'lab.of': 'de', 'lab.ops': 'De dónde salieron los {n} hijos de la generación {g}',
+    'lab.ops0b': 'La generación 0 es la población inicial, sin hijos todavía',
+    'op.x': 'cruza', 'op.r': 'mutación con salto al azar', 'op.m': 'mutación con paso', 'op.c': 'copia',
+    'ws.read': 'Con peso {w}, la suma ponderada elige <b>{fr} % a {cp} kN</b>. Al recorrer todos los pesos solo alcanza <b>{k} de 5</b> puntos.',
+    'ws.blind': 'invisible para la suma', 'ws.pick': 'mínimo de la suma',
+    'sc.n': '{n} combinaciones', 'sc.t': 'A un milisegundo por evaluación: {t}.',
+    'sc.t.ms': 'menos de un segundo', 'sc.t.s': '{v} segundos', 'sc.t.min': '{v} minutos', 'sc.t.h': '{v} horas', 'sc.t.d': '{v} días', 'sc.t.y': '{v} años', 'sc.t.my': '{v} millones de años',
+    'pill.best': 'Recomendado', 'pill.fr': 'friabilidad', 'pill.cp': 'compresión',
+    'lk.readrows': 'Pliegue {f}: {n} filas de prueba repartidas al azar. <b>{s} de 60 lotes</b> tienen filas en entrenamiento y en prueba a la vez.',
+    'lk.readlots': 'Pliegue {f}: {n} filas de prueba en {l} lotes completos. <b>Ningún lote</b> aparece en ambos lados.',
+    'drum.count': 'Vuelta {n} de 100.'
+  },
+  en: {
+    'ax.x': 'compression force (kN)', 'ax.y': 'friability (%)',
+    'hero.status': 'Generation {g}: <b>{k} of 5</b> front points found',
+    'vars': ['Precompression', 'Compression', 'Mean weight', 'Minimum weight', 'Maximum weight', 'Thickness', 'Hardness', 'Diameter'],
+    'row': 'Row', 'lot': 'lot', 'Lot': 'Lot',
+    'dom.read': '<b>Row {row}, lot {lot}.</b> {fr}% friability at {cp} kN. <b>{n1}</b> records dominate it and it dominates <b>{n2}</b>.',
+    'dom.readfront': '<b>Row {row}, lot {lot}.</b> {fr}% friability at {cp} kN. No record dominates it: it is on the Pareto front. It dominates <b>{n2}</b> records.',
+    'dom.hide': 'Hide the front', 'dom.show': 'Show the front',
+    'bn.descx': 'Crossover blends two records gene by gene with a weight α. That blend almost never exists in the log, so the operator replaces it with the closest real record, measured by Euclidean distance over the eight standardized variables.',
+    'bn.descm': 'With probability 0.65 the individual jumps to any record, which keeps exploration alive. Otherwise it moves between 15% and 85% of the way toward another randomly chosen record and lands on the nearest real one.',
+    'bn.gox': 'Random α', 'bn.gom': 'Mutate', 'bn.target': 'Target', 'bn.b': 'B',
+    'bn.vx': 'Child: <b>row {row}, lot {lot}</b>, {fr}% at {cp} kN. {rel}',
+    'bn.vr': 'It drew a random jump (probability 0.65). The individual becomes <b>row {row}, lot {lot}</b>: {fr}% at {cp} kN. {rel}',
+    'bn.vm': 'It drew a {step}% step toward row {t}. It lands on <b>row {row}, lot {lot}</b>: {fr}% at {cp} kN. {rel}',
+    'rel.same': 'It is the same record as A.', 'rel.sameb': 'It is the same record as B.',
+    'rel.domA': 'It dominates A: both objectives improve at once.', 'rel.domBoth': 'It dominates both parents.',
+    'rel.domB': 'It dominates B, but not A.', 'rel.domd': 'A dominates it: this child would not survive against its parent.',
+    'rel.domdAny': 'One of its parents dominates it.', 'rel.none': 'It neither dominates A nor is dominated by it: a different trade-off.',
+    'rel.none2': 'It does not dominate its parents and they do not dominate it: a different trade-off.',
+    'sl.read1': '{k} of 14 survive: {full}.', 'sl.full': 'fronts 1 to {r} in full', 'sl.full1': 'front 1 in full', 'sl.full2': 'fronts 1 and 2 in full', 'sl.none': 'no complete front',
+    'sl.part': ' Front {r} is split ({a} of {b}): the most isolated go in first.', 'sl.exact': ' No front was split.',
+    'lab.play': 'Evolve', 'lab.pause': 'Pause', 'lab.gen': '{g} / {G}',
+    'lab.never': 'not within {G}', 'lab.of': 'of', 'lab.ops': 'Where the {n} offspring of generation {g} came from',
+    'lab.ops0b': 'Generation 0 is the initial population, no offspring yet',
+    'op.x': 'crossover', 'op.r': 'mutation with random jump', 'op.m': 'mutation with step', 'op.c': 'copy',
+    'ws.read': 'With weight {w}, the weighted sum picks <b>{fr}% at {cp} kN</b>. Sweeping every weight reaches only <b>{k} of 5</b> points.',
+    'ws.blind': 'invisible to the sum', 'ws.pick': 'minimum of the sum',
+    'sc.n': '{n} combinations', 'sc.t': 'At one millisecond per evaluation: {t}.',
+    'sc.t.ms': 'under a second', 'sc.t.s': '{v} seconds', 'sc.t.min': '{v} minutes', 'sc.t.h': '{v} hours', 'sc.t.d': '{v} days', 'sc.t.y': '{v} years', 'sc.t.my': '{v} million years',
+    'pill.best': 'Recommended', 'pill.fr': 'friability', 'pill.cp': 'compression',
+    'lk.readrows': 'Fold {f}: {n} test rows split at random. <b>{s} of 60 lots</b> have rows in both training and test.',
+    'lk.readlots': 'Fold {f}: {n} test rows in {l} whole lots. <b>No lot</b> appears on both sides.',
+    'drum.count': 'Turn {n} of 100.'
+  }
+};
+
+(function () {
+  'use strict';
+  const D = GA.prepare(RAW);
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const TAU = Math.PI * 2, FONT = '"Instrument Sans","Segoe UI",system-ui,sans-serif';
+  const $ = id => document.getElementById(id);
+  const nf = new Intl.NumberFormat('en-US');
+  const UNITS = ['kN', 'kN', 'mg', 'mg', 'mg', 'mm', 'kp', 'mm'], DEC = [2, 2, 1, 1, 1, 2, 1, 2];
+  const BEST = D.front[0];
+  let LANG = 'es'; const ES = {};
+  function T(k, v) {
+    let s = STR[LANG][k] !== undefined ? STR[LANG][k] : STR.es[k];
+    if (v) for (const n in v) s = s.split('{' + n + '}').join(v[n]);
+    return s;
+  }
+  const rint = n => Math.floor(Math.random() * n);
+
+  /* ---------- theme ---------- */
+  let C = {};
+  function readTheme() {
+    const s = getComputedStyle(document.documentElement), g = n => s.getPropertyValue(n).trim();
+    C = { bg: g('--bg'), surface: g('--surface'), surface2: g('--surface-2'), ink: g('--ink'), ink2: g('--ink-2'), line: g('--line'), grid: g('--grid'),
+      teal: g('--teal'), onTeal: g('--on-teal'), amber: g('--amber'), coral: g('--coral'), tablet: g('--tablet'), tabletEdge: g('--tablet-edge'), dot: g('--dot'),
+      heroBg: g('--hero-bg'), heroInk: g('--hero-ink'), heroInk2: g('--hero-ink-2'), heroLine: g('--hero-line'), heroDot: g('--hero-dot'),
+      heroTeal: g('--hero-teal'), heroAmber: g('--hero-amber'), heroTablet: g('--hero-tablet') };
+  }
+  function rgba(hex, a) {
+    if (hex[0] !== '#') return hex;
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  const redraws = [];
+  function redrawAll() { readTheme(); for (const f of redraws) f(); }
+
+  /* ---------- canvas helpers ---------- */
+  function fit(cv) {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth, h = cv.clientHeight;
+    const W = Math.round(w * dpr), H = Math.round(h * dpr);
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+  function objPlot(cv, o) {
+    o = o || {}; const { ctx, w, h } = fit(cv), small = w < 460;
+    const pad = o.pad || { l: (small ? 42 : 54) + (o.ydec === 2 ? 8 : 0), r: 12, t: 12, b: small ? 40 : 46 };
+    const xr = o.xr || [-3, 80], yr = o.yr || [0.215, 0.785];
+    const sx = v => pad.l + (v - xr[0]) / (xr[1] - xr[0]) * (w - pad.l - pad.r);
+    const sy = v => h - pad.b - (v - yr[0]) / (yr[1] - yr[0]) * (h - pad.t - pad.b);
+    return { ctx, w, h, pad, xr, yr, sx, sy, small, xticks: o.xticks || [0, 20, 40, 60, 80], yticks: o.yticks || [0.3, 0.4, 0.5, 0.6, 0.7], ydec: o.ydec || 1 };
+  }
+  function objAxes(P, pal, better) {
+    const { ctx, w, h, pad, sx, sy } = P; ctx.save();
+    ctx.font = '500 ' + (P.small ? 11 : 12) + 'px ' + FONT; ctx.fillStyle = pal.ink2; ctx.strokeStyle = pal.grid; ctx.lineWidth = 1;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const t of P.xticks) { const x = Math.round(sx(t)) + .5; ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, h - pad.b); ctx.stroke(); ctx.fillText(String(t), x, h - pad.b + 6); }
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (const t of P.yticks) { const y = Math.round(sy(t)) + .5; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); ctx.fillText(t.toFixed(P.ydec), pad.l - 8, y); }
+    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText(T('ax.x'), w - pad.r, h - 3);
+    ctx.save(); ctx.translate(11, pad.t); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(T('ax.y'), 0, 0); ctx.restore();
+    ctx.restore();
+  }
+  function cloud(P, color, r) {
+    const { ctx, sx, sy } = P; ctx.fillStyle = color; ctx.beginPath();
+    for (let i = 0; i < D.n; i++) { const x = sx(D.cp[i]), y = sy(D.fr[i]); ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); }
+    ctx.fill();
+  }
+  function stair(P, idxs, color, lw, extend) {
+    if (!idxs.length) return; const { ctx, sx, sy, pad, w } = P, s = idxs.slice().sort((a, b) => D.cp[a] - D.cp[b]);
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.beginPath();
+    ctx.moveTo(sx(D.cp[s[0]]), sy(D.fr[s[0]]));
+    for (let k = 0; k < s.length; k++) {
+      const y = sy(D.fr[s[k]]); ctx.lineTo(sx(D.cp[s[k]]), y);
+      if (k < s.length - 1) ctx.lineTo(sx(D.cp[s[k + 1]]), y); else if (extend) ctx.lineTo(w - pad.r, y);
+    }
+    ctx.stroke(); ctx.restore();
+  }
+  function tablet(ctx, x, y, r, fill, edge, a, angle) {
+    ctx.save(); ctx.globalAlpha = a; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = fill; ctx.fill();
+    ctx.lineWidth = Math.max(1, r * .22); ctx.strokeStyle = edge; ctx.stroke();
+    if (r >= 3) { const c = Math.cos(angle) * r * .6, s = Math.sin(angle) * r * .6; ctx.beginPath(); ctx.moveTo(x - c, y - s); ctx.lineTo(x + c, y + s); ctx.lineWidth = Math.max(.8, r * .2); ctx.stroke(); }
+    ctx.restore();
+  }
+  function ring(ctx, x, y, r, color, lw, a) { ctx.save(); ctx.globalAlpha = a === undefined ? 1 : a; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.stroke(); ctx.restore(); }
+  function dotAt(ctx, x, y, r, color) { ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fillStyle = color; ctx.fill(); }
+  function label(ctx, txt, x, y, color, align, weight, halo) { ctx.save(); ctx.font = (weight || 600) + ' 12px ' + FONT; ctx.textAlign = align || 'left'; ctx.textBaseline = 'middle'; if (halo) { ctx.strokeStyle = halo; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.strokeText(txt, x, y); } ctx.fillStyle = color; ctx.fillText(txt, x, y); ctx.restore(); }
+
+  /* ---------- evolution view: one population snapshot per generation, tweened ---------- */
+  function EvoView(cv, o) {
+    let g = 0, prevG = null, t = 1, raf = 0, t0 = 0; const DUR = o.dur || 420;
+    const pal = () => o.hero
+      ? { ink2: C.heroInk2, grid: C.heroLine, dot: C.heroDot, tab: C.heroTablet, edge: C.heroBg, ring: C.heroAmber, exact: C.heroTeal, halo: C.heroBg }
+      : { ink2: C.ink2, grid: C.grid, dot: C.dot, tab: C.tablet, edge: C.ink, ring: C.amber, exact: C.teal, halo: C.surface };
+    function layout(P, snap) {
+      const groups = new Map(), pos = new Map(), R = o.hero ? (P.small ? 2.8 : 3.3) : (P.small ? 3 : 3.9);
+      for (const p of snap.pop) { let a = groups.get(p.idx); if (!a) groups.set(p.idx, a = []); a.push(p); }
+      for (const [idx, arr] of groups) {
+        arr.sort((a, b) => a.id - b.id); const bx = P.sx(D.cp[idx]), by = P.sy(D.fr[idx]);
+        arr.forEach((p, k) => { const rr = R * .92 * Math.sqrt(k), an = k * 2.39996; pos.set(p.id, { x: bx + rr * Math.cos(an), y: by + rr * Math.sin(an), rank: p.rank, from: p.from }); });
+      }
+      return { pos, R };
+    }
+    const fade = r => r === 0 ? 1 : Math.max(.3, .7 - .12 * r);
+    function render() {
+      const run = o.run(); if (!run || !run.history[g]) return;
+      const P = objPlot(cv), ctx = P.ctx, p = pal(), H = run.history[g];
+      objAxes(P, p, true); cloud(P, p.dot, P.small ? 1.25 : 1.55);
+      if (o.exact) { stair(P, D.front, rgba(p.exact, .8), 1.6, true); for (const i of D.front) dotAt(ctx, P.sx(D.cp[i]), P.sy(D.fr[i]), 3.6, p.exact); }
+      else stair(P, H.front, rgba(p.ring, .55), 1.4, true);
+      const L = layout(P, H), Lp = prevG !== null && t < 1 ? layout(P, run.history[prevG]) : null, e = 1 - Math.pow(1 - t, 3);
+      if (Lp) for (const [id, q] of Lp.pos) if (!L.pos.has(id)) tablet(ctx, q.x, q.y, L.R, p.tab, p.edge, (1 - e) * fade(q.rank), id);
+      for (const [id, q] of L.pos) {
+        let x = q.x, y = q.y, a = 1;
+        if (Lp) {
+          const b = Lp.pos.get(id);
+          if (b) { x = b.x + (q.x - b.x) * e; y = b.y + (q.y - b.y) * e; }
+          else if (q.from !== null && q.from !== undefined) { const fx = P.sx(D.cp[q.from]), fy = P.sy(D.fr[q.from]); x = fx + (q.x - fx) * e; y = fy + (q.y - fy) * e; a = e; }
+          else a = e;
+        }
+        tablet(ctx, x, y, L.R, p.tab, p.edge, a * fade(q.rank), id);
+      }
+      const before = prevG !== null && t < 1 ? new Set(run.history[prevG].front) : null;
+      for (const i of H.front) {
+        const x = P.sx(D.cp[i]), y = P.sy(D.fr[i]), rr = P.small ? 8 : 10; ring(ctx, x, y, rr, p.halo, 5, .85); ring(ctx, x, y, rr, p.ring, 2.4);
+        if (before && !before.has(i)) ring(ctx, x, y, 11 + 34 * e, p.ring, 2, 1 - e);
+      }
+    }
+    function frame(now) { t = Math.min(1, (now - t0) / DUR); render(); raf = t < 1 ? requestAnimationFrame(frame) : 0; }
+    function show(ng, animate) {
+      const run = o.run(); cancelAnimationFrame(raf);
+      prevG = animate && !REDUCE && ng !== g && run.history[g] ? g : null; g = ng;
+      if (prevG !== null) { t = 0; t0 = performance.now(); raf = requestAnimationFrame(frame); } else { t = 1; render(); }
+    }
+    redraws.push(() => { if (!raf) render(); });
+    return { show, render };
+  }
+
+  /* ---------- runs ---------- */
+  const DEF = { mu: 120, lambda: 240, gens: 60, cxpb: .55, mutpb: .40, reset: .65, seed: 42 };
+  const makeRun = p => GA.createRun(D, { mu: p.mu, lambda: p.lambda, cxpb: p.cxpb, mutpb: p.mutpb, reset: p.reset, seed: p.seed });
+  const ensure = (run, g) => { while (run.gen < g) run.step(); };
+
+  /* ---------- hero ---------- */
+  const heroRun = makeRun(DEF), HERO_G = 12;
+  const heroView = EvoView($('cv-hero'), { hero: true, run: () => heroRun, dur: 560 });
+  let heroTimer = 0, heroG = 0;
+  function heroStatus() { $('hero-status').innerHTML = T('hero.status', { g: heroG, k: Math.round(heroRun.history[heroG].cov * 5) }); }
+  function heroPlay() {
+    clearInterval(heroTimer);
+    if (REDUCE) { ensure(heroRun, HERO_G); heroG = HERO_G; heroView.show(heroG, false); heroStatus(); return; }
+    heroG = 0; heroView.show(0, false); heroStatus();
+    heroTimer = setInterval(() => {
+      if (heroG >= HERO_G) { clearInterval(heroTimer); return; }
+      heroG++; ensure(heroRun, heroG); heroView.show(heroG, true); heroStatus();
+    }, 820);
+  }
+  $('hero-replay').addEventListener('click', heroPlay);
+
+  /* ---------- drum: 100 turns at a true 25 rpm ---------- */
+  (function () {
+    const rig = $('rig-drum'), spin = rig.querySelector('.drum-spin'), out = $('drum-count'); let n = 0, on = false;
+    const txt = () => { out.textContent = on ? T('drum.count', { n: Math.min(n, 100) }) : ''; };
+    spin.addEventListener('animationiteration', () => { n++; txt(); });
+    spin.addEventListener('animationend', () => { n = 100; txt(); });
+    if (!REDUCE && 'IntersectionObserver' in window) new IntersectionObserver((es, ob) => { if (es[0].isIntersecting) { on = true; n = 1; rig.classList.add('spinning'); txt(); ob.disconnect(); } }, { threshold: .4 }).observe(rig);
+    redraws.push(txt);
+  })();
+
+  /* ---------- dominance explorer ---------- */
+  const dom = { sel: 0, front: false, cv: $('cv-dom'), P: null };
+  (function () { for (let i = 0; i < D.n; i++) if (D.fr[i] === 0.42 && D.cp[i] > 30 && D.cp[i] < 36) { dom.sel = i; break; } })();
+  function domDraw() {
+    const P = dom.P = objPlot(dom.cv), ctx = P.ctx, i = dom.sel, x = P.sx(D.cp[i]), y = P.sy(D.fr[i]);
+    const pal = { ink2: C.ink2, grid: C.grid };
+    ctx.fillStyle = rgba(C.teal, .11); ctx.fillRect(P.pad.l, y, x - P.pad.l, P.h - P.pad.b - y);
+    ctx.fillStyle = rgba(C.coral, .09); ctx.fillRect(x, P.pad.t, P.w - P.pad.r - x, y - P.pad.t);
+    objAxes(P, pal, true);
+    let n1 = 0, n2 = 0; const r = P.small ? 1.7 : 2.1, A = [], B = [], N = [];
+    for (let j = 0; j < D.n; j++) { if (j === i) continue; if (GA.dominates(D, j, i)) { n1++; A.push(j); } else if (GA.dominates(D, i, j)) { n2++; B.push(j); } else N.push(j); }
+    const batch = (ids, col, rr) => { ctx.fillStyle = col; ctx.beginPath(); for (const j of ids) { const px = P.sx(D.cp[j]), py = P.sy(D.fr[j]); ctx.moveTo(px + rr, py); ctx.arc(px, py, rr, 0, TAU); } ctx.fill(); };
+    batch(N, C.dot, r); batch(B, rgba(C.coral, .62), r); batch(A, C.teal, r + .5);
+    if (dom.front) { stair(P, D.front, C.amber, 2, true); for (const j of D.front) { dotAt(ctx, P.sx(D.cp[j]), P.sy(D.fr[j]), 4.5, C.amber); } }
+    ctx.save(); ctx.strokeStyle = rgba(C.ink, .45); ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(P.pad.l, y); ctx.lineTo(P.w - P.pad.r, y); ctx.moveTo(x, P.pad.t); ctx.lineTo(x, P.h - P.pad.b); ctx.stroke(); ctx.restore();
+    tablet(ctx, x, y, 8, C.tablet, C.ink, 1, .6);
+    const v = { row: i, lot: D.lot[i], fr: D.fr[i].toFixed(2), cp: D.cp[i].toFixed(2), n1: nf.format(n1), n2: nf.format(n2) };
+    $('dom-read').innerHTML = T(n1 ? 'dom.read' : 'dom.readfront', v);
+    $('dom-profile').innerHTML = T('vars').map((nm, j) => '<dt>' + nm + '</dt><dd>' + D.X[j][i].toFixed(DEC[j]) + ' ' + UNITS[j] + '</dd>').join('');
+    const b = $('dom-front'); b.textContent = T(dom.front ? 'dom.hide' : 'dom.show'); b.setAttribute('aria-pressed', dom.front);
+  }
+  function domPick(ev) {
+    if (!dom.P) return; const r = dom.cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top; let bi = -1, bd = 26 * 26;
+    for (let j = 0; j < D.n; j++) { const dx = dom.P.sx(D.cp[j]) - mx, dy = dom.P.sy(D.fr[j]) - my, d = dx * dx + dy * dy; if (d < bd) { bd = d; bi = j; } }
+    if (bi >= 0 && bi !== dom.sel) { dom.sel = bi; domDraw(); }
+  }
+  dom.cv.addEventListener('pointerdown', domPick);
+  const byCp = Array.from({ length: D.n }, (_, i) => i).sort((p, q) => D.cp[p] - D.cp[q] || D.fr[p] - D.fr[q]);
+  const byFr = byCp.slice().sort((p, q) => D.fr[p] - D.fr[q] || D.cp[p] - D.cp[q]);
+  dom.cv.addEventListener('keydown', e => {
+    const step = { ArrowRight: [byCp, 1], ArrowLeft: [byCp, -1], ArrowUp: [byFr, 1], ArrowDown: [byFr, -1] }[e.key]; if (!step) return;
+    e.preventDefault(); const k = step[0].indexOf(dom.sel) + step[1] * (e.shiftKey ? 25 : 1); dom.sel = step[0][Math.max(0, Math.min(D.n - 1, k))]; domDraw();
+  });
+  $('dom-rand').addEventListener('click', () => { dom.sel = rint(D.n); domDraw(); });
+  $('dom-front').addEventListener('click', () => { dom.front = !dom.front; domDraw(); });
+  redraws.push(domDraw);
+
+  /* ---------- crossover and mutation bench ---------- */
+  const bn = { mode: 'x', a: D.front[2], b: BEST, alpha: .5, mix: null, child: 0, target: null, step: 0, kind: 'x' };
+  (function () {
+    const host = $('genes'); let html = '';
+    for (let j = 0; j < D.m; j++) html += '<div class="gene"><span class="gname"><span data-var="' + j + '"></span> <small>' + UNITS[j] + '</small></span><div class="gtrack"><i class="gm a"></i><i class="gm b"></i><i class="gm x"></i><i class="gm c"></i></div><span class="gv a"></span><span class="gv b"></span><span class="gv c"></span></div>';
+    host.innerHTML = html;
+  })();
+  function bnCompute() {
+    if (bn.mode === 'x') { bn.kind = 'x'; bn.mix = GA.blendChild(D, bn.a, bn.b, bn.alpha); bn.child = GA.nearest(D, bn.mix); }
+  }
+  function bnMutate(forceStep) {
+    if (!forceStep && Math.random() < .65) { bn.kind = 'r'; bn.child = rint(D.n); bn.mix = null; bn.target = null; }
+    else { bn.kind = 'm'; bn.target = rint(D.n); bn.step = .15 + Math.random() * .7; bn.mix = GA.stepChild(D, bn.a, bn.target, bn.step); bn.child = GA.nearest(D, bn.mix); }
+  }
+  const zpos = z => Math.max(2, Math.min(98, (z + 3.2) / 6.4 * 100)) + '%';
+  function bnRel() {
+    const c = bn.child, a = bn.a, b = bn.b, dm = GA.dominates;
+    if (bn.mode === 'x') {
+      if (c === a) return T('rel.same'); if (c === b) return T('rel.sameb');
+      const dA = dm(D, c, a), dB = dm(D, c, b);
+      if (dA && dB) return T('rel.domBoth'); if (dA) return T('rel.domA'); if (dB) return T('rel.domB');
+      return dm(D, a, c) || dm(D, b, c) ? T('rel.domdAny') : T('rel.none2');
+    }
+    if (c === a) return T('rel.same'); if (dm(D, c, a)) return T('rel.domA'); if (dm(D, a, c)) return T('rel.domd'); return T('rel.none');
+  }
+  function bnDraw() {
+    const isX = bn.mode === 'x', other = isX ? bn.b : bn.target, rows = $('genes').children, names = T('vars');
+    for (let j = 0; j < D.m; j++) {
+      const row = rows[j], m = row.querySelectorAll('.gm'), v = row.querySelectorAll('.gv');
+      row.querySelector('[data-var]').textContent = names[j];
+      m[0].style.left = zpos(D.Z[bn.a * D.m + j]);
+      m[1].style.opacity = other === null ? 0 : 1; if (other !== null) m[1].style.left = zpos(D.Z[other * D.m + j]);
+      m[2].style.opacity = bn.mix ? 1 : 0; if (bn.mix) m[2].style.left = zpos(bn.mix[j]);
+      m[3].style.left = zpos(D.Z[bn.child * D.m + j]);
+      v[0].textContent = D.X[j][bn.a].toFixed(DEC[j]); v[1].textContent = other === null ? '–' : D.X[j][other].toFixed(DEC[j]); v[2].textContent = D.X[j][bn.child].toFixed(DEC[j]);
+    }
+    $('bn-desc').textContent = T(isX ? 'bn.descx' : 'bn.descm');
+    $('bn-go').textContent = T(isX ? 'bn.gox' : 'bn.gom');
+    $('bn-colb').textContent = $('bn-kb').textContent = isX ? T('bn.b') : T('bn.target');
+    $('bn-alpha-wrap').style.display = isX ? '' : 'none'; $('bn-b').style.display = isX ? '' : 'none';
+    $('bn-x').setAttribute('aria-pressed', isX); $('bn-m').setAttribute('aria-pressed', !isX);
+    $('bn-alpha-out').textContent = bn.alpha.toFixed(2);
+    const c = bn.child, vars = { row: c, lot: D.lot[c], fr: D.fr[c].toFixed(2), cp: D.cp[c].toFixed(2), rel: bnRel(), step: Math.round(bn.step * 100), t: bn.target };
+    $('bn-verdict').innerHTML = T(isX ? 'bn.vx' : bn.kind === 'r' ? 'bn.vr' : 'bn.vm', vars);
+    const P = objPlot($('cv-bench')), ctx = P.ctx; objAxes(P, { ink2: C.ink2, grid: C.grid }, false); cloud(P, C.dot, 1.4);
+    const pt = i => [P.sx(D.cp[i]), P.sy(D.fr[i])], A = pt(bn.a), Cc = pt(c), O = other !== null ? pt(other) : null;
+    ctx.save(); ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5; ctx.strokeStyle = rgba(C.ink, .5); ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(Cc[0], Cc[1]); if (O) { ctx.moveTo(O[0], O[1]); ctx.lineTo(Cc[0], Cc[1]); } ctx.stroke(); ctx.restore();
+    if (O) { dotAt(ctx, O[0], O[1], 6.5, C.ink); ring(ctx, O[0], O[1], 6.5, C.surface, 1.5); }
+    dotAt(ctx, A[0], A[1], 6.5, C.teal); ring(ctx, A[0], A[1], 6.5, C.surface, 1.5);
+    ring(ctx, Cc[0], Cc[1], 11, C.amber, 2.6);
+  }
+  $('bn-alpha').addEventListener('input', e => { bn.alpha = +e.target.value; bnCompute(); bnDraw(); });
+  $('bn-go').addEventListener('click', () => { if (bn.mode === 'x') { bn.alpha = Math.round(Math.random() * 100) / 100; $('bn-alpha').value = bn.alpha; bnCompute(); } else bnMutate(false); bnDraw(); });
+  $('bn-a').addEventListener('click', () => { bn.a = rint(D.n); if (bn.mode === 'x') bnCompute(); else bnMutate(false); bnDraw(); });
+  $('bn-b').addEventListener('click', () => { bn.b = rint(D.n); bnCompute(); bnDraw(); });
+  $('bn-x').addEventListener('click', () => { bn.mode = 'x'; bn.target = null; bnCompute(); bnDraw(); });
+  $('bn-m').addEventListener('click', () => { bn.mode = 'm'; bnMutate(true); bnDraw(); });
+  bnCompute(); redraws.push(bnDraw);
+
+  /* ---------- selection demo ---------- */
+  const sl = { pool: [], k: 7 };
+  function slSample() {
+    const seen = new Set(), out = [];
+    let tries = 0; while (out.length < 14) { const i = rint(D.n), key = D.fr[i] + '|' + D.cp[i]; if (D.cp[i] > 60 || D.cp[i] < 10 || seen.has(key)) continue; if (tries++ < 4000 && out.some(p => Math.hypot((D.cp[p.idx] - D.cp[i]) / 4.2, (D.fr[p.idx] - D.fr[i]) / .055) < 1)) continue; seen.add(key); out.push({ idx: i }); }
+    sl.pool = out;
+  }
+  function ticks(lo, hi, n) { const raw = (hi - lo) / n, p = Math.pow(10, Math.floor(Math.log10(raw))), s = [1, 2, 5, 10].map(m => m * p).find(v => v >= raw), out = []; for (let v = Math.ceil(lo / s) * s; v <= hi + 1e-9; v += s) out.push(+v.toFixed(6)); return out; }
+  function slDraw() {
+    const pool = sl.pool; GA.selNSGA2(D, pool, pool.length); const all = pool.map(p => ({ rank: p.rank }));
+    const chosen = new Set(GA.selNSGA2(D, pool, sl.k)); pool.forEach((p, i) => { p.rank = all[i].rank; });
+    const cps = pool.map(p => D.cp[p.idx]), frs = pool.map(p => D.fr[p.idx]);
+    const xr = [Math.min.apply(null, cps) - 3, Math.max.apply(null, cps) + 3], yr = [Math.min.apply(null, frs) - .035, Math.max.apply(null, frs) + .035];
+    const P = objPlot($('cv-sel'), { xr, yr, xticks: ticks(xr[0], xr[1], 5), yticks: ticks(yr[0], yr[1], 5), ydec: 2 }), ctx = P.ctx;
+    objAxes(P, { ink2: C.ink2, grid: C.grid }, false);
+    const maxR = Math.max.apply(null, pool.map(p => p.rank)), col = r => r === 0 ? C.teal : rgba(C.ink, Math.max(.3, .78 - .13 * r));
+    for (let r = 0; r <= maxR; r++) stair(P, pool.filter(p => p.rank === r).map(p => p.idx), rgba(r === 0 ? C.teal : C.ink, r === 0 ? .7 : .22), 1.5, false);
+    for (const p of pool) {
+      const x = P.sx(D.cp[p.idx]), y = P.sy(D.fr[p.idx]), inn = chosen.has(p);
+      ctx.save(); ctx.beginPath(); ctx.arc(x, y, P.small ? 9 : 11, 0, TAU);
+      if (inn) { ctx.fillStyle = col(p.rank); ctx.fill(); } else { ctx.fillStyle = C.surface; ctx.fill(); ctx.setLineDash([3, 3]); ctx.strokeStyle = C.ink2; ctx.lineWidth = 1.3; ctx.stroke(); }
+      ctx.restore(); label(ctx, String(p.rank + 1), x, y + .5, inn ? (p.rank === 0 ? C.onTeal : C.surface) : C.ink2, 'center', 700);
+    }
+    let full = 0, part = null;
+    for (let r = 0; r <= maxR; r++) { const f = pool.filter(p => p.rank === r), a = f.filter(p => chosen.has(p)).length; if (a === f.length && part === null && a > 0) full = r + 1; else if (a > 0) part = { r: r + 1, a, b: f.length }; }
+    $('sl-k-out').textContent = sl.k;
+    $('sl-read').innerHTML = T('sl.read1', { k: sl.k, full: full === 0 ? T('sl.none') : full === 1 ? T('sl.full1') : full === 2 ? T('sl.full2') : T('sl.full', { r: full }) }) + (part ? T('sl.part', part) : T('sl.exact'));
+  }
+  $('sl-k').addEventListener('input', e => { sl.k = +e.target.value; slDraw(); });
+  $('sl-new').addEventListener('click', () => { slSample(); slDraw(); });
+  slSample(); redraws.push(slDraw);
+
+  /* ---------- lab ---------- */
+  const lab = { p: Object.assign({}, DEF), run: heroRun, g: DEF.gens, timer: 0, first: null };
+  const labView = EvoView($('cv-lab'), { exact: true, run: () => lab.run, dur: 360 });
+  const CTL = [['p-mu', 'mu', 0], ['p-la', 'lambda', 0], ['p-g', 'gens', 0], ['p-cx', 'cxpb', 2], ['p-mt', 'mutpb', 2], ['p-rs', 'reset', 2]];
+  function labSync() { for (const [id, key, d] of CTL) { $(id).value = lab.p[key]; $(id + '-out').textContent = lab.p[key].toFixed(d); } $('p-seed').value = lab.p.seed; $('lab-scrub').max = lab.p.gens; }
+  function miniChart(cv, vals, g, o) {
+    const { ctx, w, h } = fit(cv), pad = { l: 38, r: 8, t: 8, b: 20 }, G = vals.length - 1;
+    const sx = i => pad.l + i / G * (w - pad.l - pad.r), sy = v => h - pad.b - v / o.ymax * (h - pad.t - pad.b);
+    ctx.font = '500 11px ' + FONT; ctx.fillStyle = C.ink2; ctx.strokeStyle = C.grid; ctx.lineWidth = 1; ctx.textBaseline = 'middle'; ctx.textAlign = 'right';
+    for (const tk of o.yticks) { const y = Math.round(sy(tk)) + .5; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); ctx.fillText(nf.format(tk), pad.l - 6, y); }
+    ctx.textBaseline = 'top'; ctx.textAlign = 'left'; ctx.fillText('0', pad.l, h - pad.b + 5); ctx.textAlign = 'right'; ctx.fillText(String(G), w - pad.r, h - pad.b + 5);
+    const path = n => { ctx.beginPath(); ctx.moveTo(sx(0), sy(vals[0])); for (let i = 1; i <= n; i++) { if (o.step) ctx.lineTo(sx(i), sy(vals[i - 1])); ctx.lineTo(sx(i), sy(vals[i])); } };
+    path(G); ctx.strokeStyle = rgba(o.color, .28); ctx.lineWidth = 1.5; ctx.stroke();
+    path(g); ctx.lineTo(sx(g), sy(0)); ctx.lineTo(sx(0), sy(0)); ctx.closePath(); ctx.fillStyle = rgba(o.color, .16); ctx.fill();
+    path(g); ctx.strokeStyle = o.color; ctx.lineWidth = 2.2; ctx.lineJoin = 'round'; ctx.stroke();
+    dotAt(ctx, sx(g), sy(vals[g]), 4.5, o.color); ring(ctx, sx(g), sy(vals[g]), 4.5, C.surface, 1.5);
+  }
+  function labStats() {
+    const H = lab.run.history, h = H[lab.g], G = lab.p.gens;
+    $('lab-gen').textContent = T('lab.gen', { g: lab.g, G }); $('lab-scrub').value = lab.g;
+    $('s-front').innerHTML = Math.round(h.cov * 5) + '<small> / 5</small>';
+    $('s-evals').textContent = nf.format(h.evals);
+    $('s-uniq').innerHTML = nf.format(h.unique) + '<small> / ' + nf.format(D.n) + '</small>';
+    $('s-first').innerHTML = lab.first === null ? '<small>' + T('lab.never', { G }) + '</small>' : String(lab.first);
+    $('lab-play').textContent = T(lab.timer ? 'lab.pause' : 'lab.play');
+    const hist = H.slice(0, G + 1);
+    miniChart($('cv-cov'), hist.map(x => Math.round(x.cov * 5)), lab.g, { ymax: 5, yticks: [0, 1, 2, 3, 4, 5], color: C.amber, step: true });
+    miniChart($('cv-uniq'), hist.map(x => x.unique), lab.g, { ymax: D.n, yticks: [0, 500, D.n], color: C.teal });
+    const ops = h.ops, bar = $('opbar').children, keys = ['x', 'r', 'm', 'c'];
+    if (!ops) { $('ops-title').textContent = T('lab.ops0b'); for (const b of bar) b.style.width = '0%'; $('opkey').innerHTML = ''; }
+    else {
+      const n = ops.x + ops.r + ops.m + ops.c; $('ops-title').textContent = T('lab.ops', { n, g: lab.g });
+      keys.forEach((k, i) => { bar[i].style.width = ops[k] / n * 100 + '%'; });
+      const cols = ['var(--teal)', 'var(--amber)', 'var(--ink-2)', 'var(--tablet-edge)'];
+      $('opkey').innerHTML = keys.map((k, i) => '<span><i style="background:' + cols[i] + '"></i>' + T('op.' + k) + ' <b class="num">' + ops[k] + '</b></span>').join('');
+    }
+  }
+  function labStop() { clearInterval(lab.timer); lab.timer = 0; }
+  function labBuild(play) {
+    labStop(); lab.run = makeRun(lab.p); ensure(lab.run, lab.p.gens);
+    const f = lab.run.history.find(x => x.cov === 1); lab.first = f ? f.gen : null;
+    labSync(); if (play && !REDUCE) { lab.g = 0; labView.show(0, false); labStats(); labPlay(); } else { lab.g = lab.p.gens; labView.show(lab.g, false); labStats(); }
+  }
+  function labPlay() {
+    if (lab.timer) { labStop(); labStats(); return; }
+    if (lab.g >= lab.p.gens) { lab.g = 0; labView.show(0, false); }
+    lab.timer = setInterval(() => { if (lab.g >= lab.p.gens) { labStop(); labStats(); return; } lab.g++; labView.show(lab.g, true); labStats(); }, 430);
+    labStats();
+  }
+  let labDeb = 0;
+  for (const [id, key, d] of CTL) $(id).addEventListener('input', e => {
+    lab.p[key] = +e.target.value;
+    if (key === 'cxpb' && lab.p.cxpb + lab.p.mutpb > 1) lab.p.mutpb = +(1 - lab.p.cxpb).toFixed(2);
+    if (key === 'mutpb' && lab.p.cxpb + lab.p.mutpb > 1) lab.p.cxpb = +(1 - lab.p.mutpb).toFixed(2);
+    for (const [i2, k2, d2] of CTL) { $(i2).value = lab.p[k2]; $(i2 + '-out').textContent = lab.p[k2].toFixed(d2); }
+    clearTimeout(labDeb); labDeb = setTimeout(() => labBuild(true), 260);
+  });
+  $('p-seed').addEventListener('change', e => { lab.p.seed = Math.max(1, Math.min(99999, Math.round(+e.target.value) || 1)); labBuild(true); });
+  $('p-reseed').addEventListener('click', () => { lab.p.seed = 1 + rint(9999); labBuild(true); });
+  $('p-reset').addEventListener('click', () => { lab.p = Object.assign({}, DEF); labBuild(true); });
+  $('lab-play').addEventListener('click', labPlay);
+  $('lab-scrub').addEventListener('input', e => { labStop(); lab.g = +e.target.value; labView.show(lab.g, false); labStats(); });
+  redraws.push(() => { if (lab.run.history[lab.g]) labStats(); });
+
+  /* ---------- weighted sum ---------- */
+  const ws = { w: .8, reach: new Set() };
+  const FR0 = 0.25, FRS = 0.5, CP0 = 0.62, CPS = 77.6 - 0.62;
+  function wsBest(w) { let b = -1, bv = Infinity; for (let i = 0; i < D.n; i++) { const v = w * (D.fr[i] - FR0) / FRS + (1 - w) * (D.cp[i] - CP0) / CPS; if (v < bv) { bv = v; b = i; } } return [b, bv]; }
+  for (let k = 1; k < 2000; k++) ws.reach.add(wsBest(k / 2000)[0]);
+  function wsDraw() {
+    const P = objPlot($('cv-ws'), { xr: [-3, 44], yr: [0.225, 0.445], xticks: [0, 10, 20, 30, 40], yticks: [0.25, 0.30, 0.35, 0.40], ydec: 2 }), ctx = P.ctx;
+    objAxes(P, { ink2: C.ink2, grid: C.grid }, false);
+    ctx.save(); ctx.beginPath(); ctx.rect(P.pad.l, P.pad.t, P.w - P.pad.l - P.pad.r, P.h - P.pad.t - P.pad.b); ctx.clip();
+    cloud(P, C.dot, 1.6); stair(P, D.front, rgba(C.ink, .3), 1.3, true);
+    const [b, bv] = wsBest(ws.w), fAt = cp => FR0 + FRS / ws.w * (bv - (1 - ws.w) * (cp - CP0) / CPS);
+    ctx.strokeStyle = C.amber; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P.sx(-3), P.sy(fAt(-3))); ctx.lineTo(P.sx(44), P.sy(fAt(44))); ctx.stroke();
+    ctx.restore();
+    for (const i of D.front) {
+      const x = P.sx(D.cp[i]), y = P.sy(D.fr[i]);
+      if (ws.reach.has(i)) dotAt(ctx, x, y, 5.5, C.teal); else { dotAt(ctx, x, y, 5.5, C.surface); ring(ctx, x, y, 5.5, C.coral, 2.2); }
+    }
+    const blind = D.front.filter(i => !ws.reach.has(i));
+    blind.forEach((i, n) => { const x = P.sx(D.cp[i]), y = P.sy(D.fr[i]), ly = y - 20 - (n === blind.length - 1 && blind.length > 1 ? 14 : 0), txt = T('ws.blind'); ctx.save(); ctx.font = '600 12px ' + FONT; const flip = x + 16 + ctx.measureText(txt).width > P.w - 4, lx = flip ? x - 16 : x + 16; ctx.strokeStyle = C.coral; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x + (flip ? -5 : 5), y - 5); ctx.lineTo(lx + (flip ? 2 : -2), ly + 5); ctx.stroke(); ctx.restore(); label(ctx, txt, lx, ly, C.coral, flip ? 'right' : 'left', 600, C.surface); });
+    ring(ctx, P.sx(D.cp[b]), P.sy(D.fr[b]), 11, C.amber, 2.6);
+    $('ws-w-out').textContent = ws.w.toFixed(2);
+    $('ws-read').innerHTML = T('ws.read', { w: ws.w.toFixed(2), fr: D.fr[b].toFixed(2), cp: D.cp[b].toFixed(2), k: D.front.filter(i => ws.reach.has(i)).length });
+  }
+  $('ws-w').addEventListener('input', e => { ws.w = +e.target.value; wsDraw(); });
+  redraws.push(wsDraw);
+
+  /* ---------- scale ---------- */
+  const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+  function big(n) { if (n < 1e9) return nf.format(n); const e = Math.floor(Math.log10(n) + 1e-9), m = n / Math.pow(10, e); return (Math.abs(m - 1) < 1e-9 ? '' : m.toFixed(1) + ' × ') + '10' + String(e).split('').map(c => SUP[+c]).join(''); }
+  function human(sec) {
+    if (sec < 1) return T('sc.t.ms'); if (sec < 120) return T('sc.t.s', { v: nf.format(Math.round(sec)) });
+    if (sec < 7200) return T('sc.t.min', { v: nf.format(Math.round(sec / 60)) }); if (sec < 172800) return T('sc.t.h', { v: nf.format(Math.round(sec / 3600)) });
+    const d = sec / 86400; if (d < 730) return T('sc.t.d', { v: nf.format(Math.round(d)) }); const y = d / 365.25;
+    return y < 2e6 ? T('sc.t.y', { v: nf.format(Math.round(y)) }) : T('sc.t.my', { v: nf.format(Math.round(y / 1e6)) });
+  }
+  function scDraw() {
+    const d = +$('sc-d').value, L = +$('sc-l').value, n = Math.pow(L, d);
+    $('sc-d-out').textContent = d; $('sc-l-out').textContent = L;
+    $('sc-n').textContent = T('sc.n', { n: big(n) }); $('sc-t').textContent = T('sc.t', { t: human(n / 1000) });
+    $('sc-fill').style.width = Math.max(1.2, Math.log10(n) / 16 * 100) + '%';
+    $('sc-m1').style.left = Math.log10(1098) / 16 * 100 + '%'; $('sc-m2').style.left = Math.log10(41403) / 16 * 100 + '%';
+  }
+  $('sc-d').addEventListener('input', scDraw); $('sc-l').addEventListener('input', scDraw); redraws.push(scDraw);
+
+  /* ---------- result tablets ---------- */
+  function pills() {
+    $('five').innerHTML = D.front.map((i, n) => {
+      const best = i === BEST, fr = D.fr[i].toFixed(2), cp = D.cp[i].toFixed(2), pc = LANG === 'en' ? '%' : ' %';
+      return '<article class="pill' + (best ? ' best' : '') + '">' +
+        '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><radialGradient id="tg' + n + '" cx="36%" cy="30%" r="75%"><stop offset="0" style="stop-color:var(--tablet)"/><stop offset="1" style="stop-color:var(--tablet-shade)"/></radialGradient></defs>' +
+        '<ellipse cx="60" cy="110" rx="40" ry="5" style="fill:var(--ink)" opacity=".1"/><circle cx="60" cy="58" r="52" fill="url(#tg' + n + ')" style="stroke:var(--tablet-edge)" stroke-width="1.5"/>' +
+        '<circle cx="60" cy="58" r="43" fill="none" style="stroke:var(--tablet-edge)" stroke-opacity=".45"/><path d="M24 58h72" style="stroke:var(--tablet-edge)" stroke-width="2.5" stroke-linecap="round"/><path d="M24 60h72" stroke="#fff" stroke-opacity=".8" stroke-width="1" stroke-linecap="round"/>' +
+        '<g font-family="Bricolage Grotesque,sans-serif" font-weight="700" text-anchor="middle"><text x="60" y="46.8" font-size="21" fill="#fff" fill-opacity=".85">' + fr + '</text><text x="60" y="46" font-size="21" fill="#5d737b">' + fr + '</text>' +
+        '<text x="60" y="84.8" font-size="17" fill="#fff" fill-opacity=".85">' + cp + '</text><text x="60" y="84" font-size="17" fill="#5d737b">' + cp + '</text></g></svg>' +
+        '<dl><dd><b>' + fr + pc + '</b> ' + T('pill.fr') + '</dd><dd><b>' + cp + ' kN</b> ' + T('pill.cp') + '</dd><dd>' + T('row') + ' ' + i + ', ' + T('lot') + ' ' + D.lot[i] + '</dd></dl>' +
+        (best ? '<span class="tag best">' + T('pill.best') + '</span>' : '') + '</article>';
+    }).join('');
+  }
+  redraws.push(pills);
+
+  /* ---------- leakage ---------- */
+  const lk = { mode: 'lots', fold: 0, rowFold: new Int8Array(D.n), lotFold: {}, lots: [] };
+  (function () {
+    for (let i = 0; i < D.n; i++) lk.rowFold[i] = +FOLDS.rows[i];   /* KFold(5, shuffle, random_state=42), as in the notebook */
+    const by = {}; for (let i = 0; i < D.n; i++) (by[D.lot[i]] = by[D.lot[i]] || []).push(i);
+    lk.lots = Object.keys(by).map(Number).sort((a, b) => a - b).map(id => ({ id, rows: by[id] }));
+    lk.lotFold = FOLDS.lots;   /* GroupKFold(5) by lot, as in the notebook */
+    $('lk-folds').innerHTML = [1, 2, 3, 4, 5].map(n => '<button type="button" data-fold="' + (n - 1) + '" aria-pressed="' + (n === 1) + '">' + n + '</button>').join('');
+  })();
+  function lkDraw() {
+    const { ctx, w, h } = fit($('cv-leak')), n = lk.lots.length, top = 6, bot = 20, colW = w / n, maxR = Math.max.apply(null, lk.lots.map(l => l.rows.length));
+    const ch = (h - top - bot) / maxR, cw = Math.max(2, colW - Math.max(1.5, colW * .22)); let nTest = 0, shared = 0, whole = 0;
+    lk.lots.forEach((l, c) => {
+      let t = 0; const x = c * colW + (colW - cw) / 2;
+      l.rows.forEach((r, k) => {
+        const test = lk.mode === 'rows' ? lk.rowFold[r] === lk.fold : lk.lotFold[l.id] === lk.fold; if (test) t++;
+        ctx.fillStyle = test ? C.amber : C.line; ctx.fillRect(x, h - bot - (k + 1) * ch + .6, cw, Math.max(1, ch - 1.2));
+      });
+      nTest += t; if (t > 0 && t < l.rows.length) { shared++; ctx.fillStyle = C.coral; ctx.fillRect(x, h - bot + 3, cw, 2.5); } else if (t === l.rows.length) whole++;
+    });
+    ctx.font = '500 11px ' + FONT; ctx.fillStyle = C.ink2; ctx.textBaseline = 'bottom'; ctx.textAlign = 'left'; ctx.fillText(T('lot') + ' 1', 0, h); ctx.textAlign = 'right'; ctx.fillText(T('lot') + ' 60', w, h);
+    $('lk-read').innerHTML = lk.mode === 'rows' ? T('lk.readrows', { f: lk.fold + 1, n: nTest, s: shared }) : T('lk.readlots', { f: lk.fold + 1, n: nTest, l: whole });
+    $('lk-rows').setAttribute('aria-pressed', lk.mode === 'rows'); $('lk-lots').setAttribute('aria-pressed', lk.mode === 'lots');
+    $('r2-rows').classList.toggle('on', lk.mode === 'rows'); $('r2-lots').classList.toggle('on', lk.mode === 'lots');
+    for (const b of $('lk-folds').children) b.setAttribute('aria-pressed', +b.dataset.fold === lk.fold);
+  }
+  $('lk-rows').addEventListener('click', () => { lk.mode = 'rows'; lkDraw(); });
+  $('lk-lots').addEventListener('click', () => { lk.mode = 'lots'; lkDraw(); });
+  $('lk-folds').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { lk.fold = +b.dataset.fold; lkDraw(); } });
+  redraws.push(lkDraw);
+
+  /* ---------- permutation importance (values from the notebook run) ---------- */
+  const IMP = [[1,.2983,.1170],[6,.2464,.0678],[3,.1387,.0466],[0,.0332,.0594],[4,.0195,.0033],[5,.0157,.0363],[7,.0103,.0163],[2,-.0004,.0032]];
+  function impDraw() {
+    const names = T('vars'), S = 0.45;
+    $('imp').innerHTML = IMP.map(r => '<div class="improw' + (r[1] < 0.05 ? ' minor' : '') + '"><span>' + names[r[0]] + '</span><div class="bar"><i style="width:' + Math.max(0, r[1]) / S * 100 + '%"></i><u style="left:' + (r[1] - r[2]) / S * 100 + '%;width:' + 2 * r[2] / S * 100 + '%"></u></div><b>' + (Math.abs(r[1]) < 5e-4 ? 0 : r[1]).toFixed(3) + '</b></div>').join('');
+  }
+  redraws.push(impDraw);
+
+  /* ---------- language, navigation, lifecycle ---------- */
+  function applyLang() {
+    document.documentElement.lang = LANG;
+    document.querySelectorAll('[data-i18n]').forEach(el => { const k = el.dataset.i18n; if (ES[k] === undefined) ES[k] = el.innerHTML; el.innerHTML = LANG === 'en' && EN[k] !== undefined ? EN[k] : ES[k]; });
+    document.querySelectorAll('[data-i18n-aria]').forEach(el => { const k = el.dataset.i18nAria; if (ES[k] === undefined) ES[k] = el.getAttribute('aria-label'); el.setAttribute('aria-label', LANG === 'en' && EN[k] !== undefined ? EN[k] : ES[k]); });
+    $('lang-es').setAttribute('aria-pressed', LANG === 'es'); $('lang-en').setAttribute('aria-pressed', LANG === 'en');
+    heroStatus(); redrawAll();
+  }
+  $('lang-es').addEventListener('click', () => { LANG = 'es'; applyLang(); });
+  $('lang-en').addEventListener('click', () => { LANG = 'en'; applyLang(); });
+  document.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => {
+    const el = $(a.dataset.go); if (!el) return; e.preventDefault(); el.scrollIntoView({ behavior: REDUCE ? 'auto' : 'smooth', block: 'start' });
+    try { history.replaceState(null, '', '#' + a.dataset.go); } catch (err) { /* sandboxed frame */ }
+  }));
+  if ('IntersectionObserver' in window) {
+    const links = {}; document.querySelectorAll('.nav-links a').forEach(a => { links[a.dataset.go] = a; });
+    const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) for (const k in links) links[k].setAttribute('aria-current', k === e.target.id ? 'true' : 'false'); }, { rootMargin: '-45% 0px -50% 0px' });
+    Object.keys(links).forEach(id => io.observe($(id)));
+  }
+  let rz = 0, lastW = window.innerWidth;
+  window.addEventListener('resize', () => { if (window.innerWidth === lastW) return; lastW = window.innerWidth; clearTimeout(rz); rz = setTimeout(redrawAll, 120); });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redrawAll);
+  new MutationObserver(redrawAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  readTheme(); ensure(heroRun, DEF.gens);
+  lab.first = (heroRun.history.find(x => x.cov === 1) || { gen: null }).gen;
+  labSync(); applyLang(); labView.show(lab.g, false); heroPlay();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(redrawAll);
+  if (location.hash && $(location.hash.slice(1))) $(location.hash.slice(1)).scrollIntoView();
+})();
+</script>
+</body>
+</html>
